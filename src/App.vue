@@ -226,9 +226,9 @@ async function locateCoordinates() {
     await nextTick();
     previewMap?.remove();
     previewMap = L.map(previewMapEl.value, { scrollWheelZoom: false }).setView([point.lat, point.lng], 15);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      attribution: 'Source: <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer">Esri</a>, Vantor, Earthstar Geographics, and the GIS User Community'
     }).addTo(previewMap);
     L.marker([point.lat, point.lng], { icon: markerIcon(true) }).addTo(previewMap);
     map.setView([point.lat, point.lng], 15);
@@ -323,10 +323,10 @@ async function downloadData() {
 watch([projects, selectedId], paint, { deep: true });
 onMounted(() => {
   map = L.map("map", { zoomControl: false }).setView([23.85, 121], 7);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 19,
     attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      'Source: <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer">Esri</a>, Vantor, Earthstar Geographics, and the GIS User Community',
   }).addTo(map);
   L.control.zoom({ position: "bottomleft" }).addTo(map);
   markers = L.layerGroup().addTo(map);
