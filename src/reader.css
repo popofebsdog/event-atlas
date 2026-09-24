@@ -1,0 +1,34 @@
+.reader-dialog {
+  margin: 0 0 0 auto;
+  width: 75vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  max-width: 100%;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+}
+.reader-dialog .reader {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.coordinate-preview { margin-top: 16px; }
+.coordinate-map { height: 220px; border: 1px solid var(--line); border-radius: 6px; }
+.project-name-field { margin-top: 16px; }
+.record-actions { display:flex; gap:8px; margin-top:8px; }
+.record-actions button { background:transparent; border-color:transparent; padding:6px 8px; font-size:12px; }
+.record-actions button:hover { background:var(--tint); }
+.danger-text { color:#a23c2e; }
+.danger-button { background:#a23c2e; color:white; border-color:#a23c2e; }
+.danger-button:hover { background:#822c20; }
+.reader-dialog .reader > iframe {
+  flex: 1;
+  min-height: 300px;
+}
+@media (max-width: 800px) {
+  .reader-dialog {
+    width: 100%;
+  }
+}
