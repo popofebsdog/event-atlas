@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 const base = "http://localhost:8787/api";
 const origin = "http://localhost:5174";
+const auth = {Authorization:'Bearer local-development-only-not-for-production'};
 async function request(path, method = "GET", body, extra = {}) {
   const r = await fetch(base + path, {
     method,
@@ -13,7 +14,7 @@ const p = await request("/projects", "POST", {
   name: "整合測試（完成後自動移除）",
   lat: 24.165,
   lng: 121.565,
-});
+}, auth);
 assert.equal(p.status, 201, JSON.stringify(p.data));
 try {
   const e = await request(`/projects/${p.data.id}/events`, "POST", {
@@ -21,7 +22,7 @@ try {
     description: "<script>alert(1)</script> 僅以文字顯示",
     occurred_at: "2025-10-17T00:00:00.000Z",
     url: "https://yanzi-gorge-story.a0979310017.chatgpt.site/",
-  });
+  }, auth);
   assert.equal(e.status, 201);
   const read = await request(`/projects/${p.data.id}/events`);
   assert.equal(read.data.items[0].id, e.data.id);
@@ -34,10 +35,9 @@ try {
     description: "",
     occurred_at: "2025-10-17T00:00:00.000Z",
     url: "javascript:alert(1)",
-  });
+  }, auth);
   assert.equal(invalid.status, 400);
   assert.equal((await request(`/events/${e.data.id}`, "DELETE")).status, 403);
-  const auth = {Authorization:'Bearer local-development-only-not-for-production'};
   const changedProject = {name:'已更新測試地區', lat:24.2,lng:121.6};
   assert.equal((await request(`/projects/${p.data.id}`, 'PUT', changedProject)).status,403);
   const updated = await request(`/projects/${p.data.id}`, 'PUT', changedProject,auth);
@@ -54,7 +54,8 @@ try {
   assert.equal((await request('/events/missing', 'PUT',changedEvent,auth)).status,404);
   assert.equal((await request(`/events/${e.data.id}`, 'DELETE',undefined,auth)).data.deleted,true);
   assert.equal((await request(`/projects/${p.data.id}/events`)).data.items.length,0);
-  assert.equal((await request(`/projects/${p.data.id}/events`,'POST',changedEvent)).status,201);
+  assert.equal((await request(`/projects/${p.data.id}/events`,'POST',changedEvent)).status,403);
+  assert.equal((await request(`/projects/${p.data.id}/events`,'POST',changedEvent,auth)).status,201);
   console.log('PASS: authorized edits, coordinate/time persistence, rejected invalid edits, event deletion');
   console.log(
     "PASS: local D1 create project → create event → independent read → unsafe URL rejection → deletion authorization",

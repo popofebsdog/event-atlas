@@ -61,7 +61,7 @@ const dateFormat = (value) =>
   });
 const canSubmit = computed(
   () =>
-    !busy.value && (editingId.value ? !!adminKey.value : (!import.meta.env.VITE_TURNSTILE_SITE_KEY || token.value)),
+    !busy.value && !!adminKey.value.trim() && (editingId.value || !import.meta.env.VITE_TURNSTILE_SITE_KEY || token.value),
 );
 const markerIcon = (active) =>
   L.divIcon({
@@ -245,7 +245,7 @@ async function save() {
     if (formKind.value === "project") {
       const p = await api(editingId.value ? `/projects/${editingId.value}` : "/projects", {
         method: editingId.value ? "PUT" : "POST",
-        headers: editingId.value ? {Authorization:`Bearer ${adminKey.value}`} : {},
+        headers: {Authorization:`Bearer ${adminKey.value}`},
         body: JSON.stringify({
           name: name.value,
           ...coordinates(),
@@ -260,7 +260,7 @@ async function save() {
       const occurred_at = new Date(`${date.value}:00+08:00`).toISOString();
       const saved = await api(editingId.value ? `/events/${editingId.value}` : `/projects/${selectedId.value}/events`, {
         method: editingId.value ? "PUT" : "POST",
-        headers: editingId.value ? {Authorization:`Bearer ${adminKey.value}`} : {},
+        headers: {Authorization:`Bearer ${adminKey.value}`},
         body: JSON.stringify({
           title: title.value,
           description: description.value,
@@ -546,7 +546,7 @@ onBeforeUnmount(() => {
             placeholder="https://..."
         /></label>
       </template>
-      <label v-if="editingId">管理員金鑰<input v-model="adminKey" type="password" required autocomplete="off" placeholder="輸入管理員金鑰" /></label>
+      <label>管理員金鑰<input v-model="adminKey" type="password" required autocomplete="off" placeholder="輸入管理員金鑰" /></label>
       <Challenge v-if="formKind && !editingId" :key="challengeKey" @token="token = $event" />
       <p v-if="notice" role="alert" class="error">{{ notice }}</p>
       <p class="hint">送出後立即公開。請勿填入私人住址或聯絡資料。</p>

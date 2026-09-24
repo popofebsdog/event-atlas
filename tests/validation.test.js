@@ -54,17 +54,18 @@ test("untrusted origins and unauthenticated deletion fail before database access
     403,
   );
 });
-test("public writes fail closed without Turnstile secret, even if LOCAL_DEV accidentally set", async () => {
+test("authorized writes fail closed without Turnstile secret, even if LOCAL_DEV accidentally set", async () => {
   const response = await worker.fetch(
     new Request("https://api.example.com/api/projects", {
       method: "POST",
       headers: {
         Origin: "https://example.com",
+        Authorization: "Bearer test-key",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: "a", lat: 24, lng: 121 }),
     }),
-    { ALLOWED_ORIGINS: "https://example.com", LOCAL_DEV: "true" },
+    { ALLOWED_ORIGINS: "https://example.com", LOCAL_DEV: "true", ADMIN_TOKEN: "test-key" },
   );
   assert.equal(response.status, 403);
 });
@@ -74,11 +75,12 @@ test("rejects oversized request before parsing or DB writes", async () => {
       method: "POST",
       headers: {
         Origin: "http://localhost:5174",
+        Authorization: "Bearer test-key",
         "Content-Type": "application/json",
       },
       body: "a".repeat(24001),
     }),
-    { ALLOWED_ORIGINS: "http://localhost:5174", LOCAL_DEV: "true" },
+    { ALLOWED_ORIGINS: "http://localhost:5174", LOCAL_DEV: "true", ADMIN_TOKEN: "test-key" },
   );
   assert.equal(response.status, 400);
 });

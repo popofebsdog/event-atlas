@@ -58,6 +58,8 @@ export default {
         });
       }
       if (request.method === "POST" && (path === "/api/projects" || match)) {
+        if (!env.ADMIN_TOKEN || request.headers.get("Authorization") !== `Bearer ${env.ADMIN_TOKEN}`)
+          return json({ error: "需要管理員權限" }, 403);
         if (!origin || !allowed.includes(origin))
           return json({ error: "投稿必須透過平台進行" }, 403);
         if (!request.headers.get("content-type")?.includes("application/json"))
