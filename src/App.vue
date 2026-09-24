@@ -38,6 +38,7 @@ const title = ref(""),
   activeEvent = ref(null);
 const embedLoading = ref(false);
 const editingId = ref(''), adminKey = ref(''), deleteTarget = ref(null), deleteDialog = ref(null), deleteError = ref('');
+const exportDialog = ref(null), exportError = ref('');
 const coordinatePreview = ref(null), previewMapEl = ref(null);
 let previewMap;
 let map,
@@ -294,23 +295,30 @@ watch(activeEvent, async (value) => {
     readerDialog.value?.showModal();
   }
 });
-function downloadData() {
-  const blob = new Blob(
-    [
-      JSON.stringify(
-        { version: 1, project: selected.value, events: events.value },
-        null,
-        2,
-      ),
-    ],
-    { type: "application/json" },
-  );
-  const href = URL.createObjectURL(blob),
-    a = document.createElement("a");
-  a.href = href;
-  a.download = `event-atlas-${selectedId.value}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(href), 1000);
+function askExport() {
+  exportError.value = '';
+  exportDialog.value.showModal();
+}
+async function downloadData() {
+  if (busy.value || !adminKey.value.trim() || !selected.value) return;
+  busy.value = true;
+  exportError.value = '';
+  const projectId = selectedId.value;
+  const snapshot = JSON.stringify({ version: 1, project: selected.value, events: events.value }, null, 2);
+  try {
+    await api('/admin/verify', { method: 'POST', headers: {Authorization: `Bearer ${adminKey.value}`} });
+    const blob = new Blob([snapshot], { type: 'application/json' });
+    const href = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = href;
+    a.download = `event-atlas-${projectId}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+    exportDialog.value.close();
+  } catch (e) {
+    exportError.value = e.message;
+  } finally {
+    busy.value = false;
+  }
 }
 watch([projects, selectedId], paint, { deep: true });
 onMounted(() => {
@@ -403,7 +411,7 @@ onBeforeUnmount(() => {
           <div class="actions">
             <button class="primary" @click="openForm('event')">
               ＋ 新增事件</button
-            ><button @click="downloadData">匯出紀錄</button>
+            ><button @click="askExport">匯出紀錄</button>
           </div>
           <div class="record-actions">
             <button @click="editRecord('project', selected)">編輯地區</button>
@@ -556,6 +564,14 @@ onBeforeUnmount(() => {
           {{ busy ? "儲存中…" : editingId ? "儲存修改" : "儲存並公開" }}
         </button>
       </div>
+    </form>
+  </dialog>
+  <dialog ref="exportDialog" @cancel="busy && $event.preventDefault()" aria-labelledby="export-heading">
+    <form @submit.prevent="downloadData">
+      <h2 id="export-heading">匯出紀錄</h2>
+      <label>管理員金鑰<input v-model="adminKey" type="password" required autocomplete="off" placeholder="輸入管理員金鑰" /></label>
+      <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
+      <div class="form-footer"><button type="button" :disabled="busy" @click="exportDialog.close()">取消</button><button class="primary" :disabled="busy || !adminKey.trim()">{{ busy ? '驗證中…' : '驗證並匯出' }}</button></div>
     </form>
   </dialog>
   <dialog ref="deleteDialog" @close="deleteTarget = null" @cancel="busy && $event.preventDefault()" aria-labelledby="delete-heading">

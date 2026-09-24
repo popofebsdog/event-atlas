@@ -28,6 +28,11 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     try {
+      if (request.method === "POST" && path === "/api/admin/verify") {
+        if (!env.ADMIN_TOKEN || request.headers.get("Authorization") !== `Bearer ${env.ADMIN_TOKEN}`)
+          return json({ error: "需要管理員權限" }, 403);
+        return json({ ok: true });
+      }
       if (request.method === "GET" && path === "/api/health")
         return json({ ok: true });
       if (request.method === "GET" && path === "/api/projects") {
