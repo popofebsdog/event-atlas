@@ -449,6 +449,18 @@ dialog::backdrop {
 .dialog-heading h2 {
   font-size: 21px;
 }
+.leaflet-control-layers label {
+  margin: 0;
+  padding: 5px 2px;
+  cursor: pointer;
+}
+.leaflet-control-layers label input {
+  display: inline-block;
+  width: auto;
+  margin: 0 6px 0 0;
+  padding: 0;
+  accent-color: #157878;
+}
 label {
   display: block;
   font-size: 12px;

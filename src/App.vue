@@ -323,11 +323,20 @@ async function downloadData() {
 watch([projects, selectedId], paint, { deep: true });
 onMounted(() => {
   map = L.map("map", { zoomControl: false }).setView([23.85, 121], 7);
-  L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+  const basicMap = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  });
+  const satelliteMap = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 19,
     attribution:
       'Source: <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer">Esri</a>, Vantor, Earthstar Geographics, and the GIS User Community',
-  }).addTo(map);
+  });
+  satelliteMap.addTo(map);
+  L.control.layers({
+    "基本地圖": basicMap,
+    "衛星影像": satelliteMap,
+  }, null, { position: "topright", collapsed: false }).addTo(map);
   L.control.zoom({ position: "bottomleft" }).addTo(map);
   markers = L.layerGroup().addTo(map);
   map.on("click", (e) => pick(e.latlng));
