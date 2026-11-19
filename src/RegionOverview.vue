@@ -5,6 +5,7 @@ const props=defineProps({projects:Array,loading:Boolean,view:Object});
 const emit=defineEmits(['open','create','view']);
 const mapEl=ref(null),adding=ref(false),listOpen=ref(true);
 let map,markers;
+function rememberView(){const point=map.getCenter();emit('view',{center:[point.lat,point.lng],zoom:map.getZoom()});}
 function paint(){
   if(!markers)return;markers.clearLayers();
   for(const project of props.projects){
@@ -30,9 +31,9 @@ onMounted(()=>{
   L.control.zoom({position:'bottomleft'}).addTo(map);L.control.scale({position:'bottomleft',imperial:false}).addTo(map);
   markers=L.layerGroup().addTo(map);paint();
   map.on('click',event=>{if(adding.value){adding.value=false;emit('create',event.latlng);}});
-  map.on('moveend',()=>{const p=map.getCenter();emit('view',{center:[p.lat,p.lng],zoom:map.getZoom()});});
+  map.on('moveend',rememberView);
 });
-onBeforeUnmount(()=>map?.remove());
+onBeforeUnmount(()=>{map?.off('moveend',rememberView);map?.remove();map=null;markers=null;});
 </script>
 
 <template>

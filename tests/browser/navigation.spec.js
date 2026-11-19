@@ -1,5 +1,20 @@
 import {test,expect} from '@playwright/test';
 const headers={Origin:'http://localhost:5174',Authorization:'Bearer local-development-only-not-for-production'};
+test('resizing the overview then entering a project removes the old map view listener',async({page,request})=>{
+  const project=await request.post('http://localhost:8787/api/projects',{headers,data:{name:'總覽尺寸切換測試',lat:24.4,lng:121.3}}).then(r=>r.json());
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  try{
+    await page.setViewportSize({width:390,height:844});
+    await page.route('**/tile.openstreetmap.org/**',r=>r.abort());await page.route('**/services.arcgisonline.com/**',r=>r.abort());
+    await page.goto('/');await page.locator(`[data-project-id="${project.id}"]`).waitFor();
+    await page.setViewportSize({width:1440,height:1000});
+    // The resize frame schedules Leaflet's debounced moveend 200ms later.
+    await page.waitForTimeout(40);
+    await page.locator(`[data-project-id="${project.id}"]`).click();
+    await expect(page.locator('#map')).toBeVisible();await page.waitForTimeout(250);
+    expect(errors).toEqual([]);
+  }finally{await fetch(`http://localhost:8787/api/projects/${project.id}`,{method:'DELETE',headers});}
+});
 test('returning during a map zoom does not execute animation callbacks after the map is removed',async({page,request})=>{
   const project=await request.post('http://localhost:8787/api/projects',{headers,data:{name:'縮放切換測試',lat:24,lng:121}}).then(r=>r.json());
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
