@@ -38,6 +38,12 @@ const title = ref(""),
   url = ref(""),
   activeEvent = ref(null);
 const embedLoading = ref(false);
+const previewVersion = ref(0);
+function reloadPreview() {
+  embedLoading.value = true;
+  mediaError.value = '';
+  previewVersion.value++;
+}
 const photos = ref([]), photoBusy = ref(false), mediaError = ref('');
 const activeMedia = computed(() => linkedMedia(activeEvent.value?.url));
 const photoSource = photo => photo.startsWith('data:') ? photo : photoUrl(photo);
@@ -639,7 +645,10 @@ onBeforeUnmount(() => {
       <div v-if="activeEvent.photos?.length" class="event-photos">
         <img v-for="(photo,index) in activeEvent.photos" :key="photo" :src="photoUrl(photo)" :alt="`${activeEvent.title}・照片 ${index + 1}`" loading="lazy" @error="mediaError = '照片載入失敗，請稍後重試。'" />
       </div>
-      <p v-if="activeMedia.kind === 'drive'" class="hint">雲端檔案請設定為「知道連結的任何人可檢視」。若仍要求登入，可直接上傳照片。</p>
+      <div v-if="activeMedia.kind === 'drive'" class="drive-help">
+        <p class="hint">若顯示「需要存取權」，請將原檔設為「知道連結的任何人／檢視者」，再重新載入。也可直接上傳照片。</p>
+        <button type="button" @click="reloadPreview">重新載入預覽</button>
+      </div>
       <p v-if="activeMedia.kind === 'web'" class="hint">若外部網站限制內嵌，請改用照片上傳或公開圖片網址。</p>
       <p v-if="embedLoading && activeMedia.kind !== 'none'" role="status" class="hint">
         正在載入事件網頁…
@@ -648,7 +657,7 @@ onBeforeUnmount(() => {
       <img v-if="activeMedia.kind === 'image'" class="linked-photo" :src="activeMedia.src" :alt="activeEvent.title" referrerpolicy="no-referrer" @load="embedLoading = false" @error="embedLoading = false; mediaError = '圖片無法載入，請確認連結公開，或改用上傳照片。'" />
       <iframe
         v-else-if="['web','drive'].includes(activeMedia.kind)"
-        :key="activeEvent.id"
+        :key="`${activeEvent.id}-${previewVersion}`"
         :src="activeMedia.src"
         :title="activeEvent.title"
         sandbox="allow-scripts allow-same-origin"

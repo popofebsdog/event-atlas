@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <rect width="960" height="540" fill="#eaf5f3"/>
+  <rect x="40" y="40" width="880" height="460" rx="12" fill="#fff" stroke="#157878" stroke-width="3"/>
+  <text x="80" y="130" fill="#157878" font-family="sans-serif" font-size="42" font-weight="bold">GeoPORT SHARE TEST</text>
+  <path d="M80 360L240 210L370 315L500 180L700 360Z" fill="#157878"/>
+  <path d="M550 360L690 250L850 360Z" fill="#d59432"/>
+  <text x="80" y="425" fill="#223b42" font-family="sans-serif" font-size="27">Synthetic image - no personal data</text>
+  <text x="80" y="465" fill="#223b42" font-family="sans-serif" font-size="22">Private access / public preview verification</text>
+</svg>

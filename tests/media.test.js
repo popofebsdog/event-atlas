@@ -19,6 +19,8 @@ test('direct image links use image rendering, including query strings', () => {
 test('Drive share URLs become previews and retain resource keys', () => {
   assert.deepEqual(linkedMedia('https://drive.google.com/file/d/abc-123/view?usp=sharing&resourcekey=secret'),{kind:'drive',src:'https://drive.google.com/file/d/abc-123/preview?resourcekey=secret'});
   assert.equal(linkedMedia('https://drive.google.com/open?id=abc').src,'https://drive.google.com/file/d/abc/preview');
+  assert.equal(linkedMedia('https://drive.google.com/file/u/0/d/abc/preview?pli=1').src,'https://drive.google.com/file/d/abc/preview');
+  assert.equal(linkedMedia('https://drive.google.com/file/u/12/d/abc/view').src,'https://drive.google.com/file/d/abc/preview');
   assert.equal(linkedMedia('https://drive.google.com.evil.test/file/d/abc/view').kind,'web');
 });
 test('photos validate bytes, limit quantity and size, reject active file types', () => {
