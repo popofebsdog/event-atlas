@@ -27,6 +27,12 @@
   flex: 1;
   min-height: 300px;
 }
+.photo-thumbnails { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+.photo-thumbnails figure { margin:0; width:120px; }
+.photo-thumbnails img { width:120px; height:90px; object-fit:cover; border-radius:5px; }
+.photo-thumbnails button { width:100%; font-size:12px; }
+.event-photos { display:grid; gap:16px; }
+.event-photos img, .linked-photo { display:block; width:100%; max-height:80dvh; object-fit:contain; background:var(--tint); }
 @media (max-width: 800px) {
   .reader-dialog {
     width: 100%;

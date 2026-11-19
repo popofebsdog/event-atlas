@@ -17,6 +17,35 @@ const p = await request("/projects", "POST", {
 }, auth);
 assert.equal(p.status, 201, JSON.stringify(p.data));
 try {
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII=';
+  const photoEvent = {title:'只有照片，沒有網址',description:'照片測試',occurred_at:'2026-09-13T06:07:00Z',photos:[png]};
+  assert.equal((await request(`/projects/${p.data.id}/events`,'POST',photoEvent)).status,403);
+  const uploaded = await request(`/projects/${p.data.id}/events`,'POST',photoEvent,auth);
+  assert.equal(uploaded.status,201,JSON.stringify(uploaded.data));
+  assert.equal(uploaded.data.url,'');
+  assert.equal(uploaded.data.photos.length,1);
+  const photoId = uploaded.data.photos[0];
+  const image = await fetch(base+`/photos/${photoId}`);
+  assert.equal(image.status,200);
+  assert.equal(image.headers.get('content-type'),'image/png');
+  assert.equal(image.headers.get('x-content-type-options'),'nosniff');
+  assert.deepEqual(Buffer.from(await image.arrayBuffer()),Buffer.from(png.split(',')[1],'base64'));
+  const list = await request(`/projects/${p.data.id}/events`);
+  assert.deepEqual(list.data.items.find(e=>e.id===uploaded.data.id).photos,[photoId]);
+  const unchanged = await request(`/events/${uploaded.data.id}`,'PUT',{...photoEvent,photos:undefined},auth);
+  assert.deepEqual(unchanged.data.photos,[photoId]);
+  const kept = await request(`/events/${uploaded.data.id}`,'PUT',{...photoEvent,photos:[photoId,png]},auth);
+  assert.equal(kept.data.photos.length,2);
+  assert.equal((await request(`/projects/${p.data.id}/events`,'POST',{...photoEvent,photos:[photoId]},auth)).status,400);
+  assert.equal((await request(`/events/${uploaded.data.id}`,'PUT',{...photoEvent,photos:['not-owned']},auth)).status,400);
+  assert.equal((await request(`/events/${uploaded.data.id}`,'PUT',{...photoEvent,photos:['data:image/jpeg;base64,PHNjcmlwdD4=']},auth)).status,400);
+  const replaced = await request(`/events/${uploaded.data.id}`,'PUT',{...photoEvent,photos:[png]},auth);
+  assert.equal(replaced.status,200);
+  assert.equal((await fetch(base+`/photos/${photoId}`)).status,404);
+  const remaining = replaced.data.photos[0];
+  assert.equal((await request(`/events/${uploaded.data.id}`,'DELETE',undefined,auth)).status,200);
+  assert.equal((await fetch(base+`/photos/${remaining}`)).status,404);
+  console.log('PASS: photo-only event; real image bytes; list; retain, replace and delete photos; ownership, invalid image and authorization checks');
   const e = await request(`/projects/${p.data.id}/events`, "POST", {
     title: "燕子口事件",
     description: "<script>alert(1)</script> 僅以文字顯示",

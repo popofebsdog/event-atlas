@@ -1,4 +1,5 @@
 import { InputError, validateProject, validateEvent } from "./validation.js";
+import {validatePhotos, photoStatements, eventSelect, eventRow} from './photos.js';
 
 export default {
   async fetch(request, env) {
@@ -35,6 +36,12 @@ export default {
       }
       if (request.method === "GET" && path === "/api/health")
         return json({ ok: true });
+      const photoMatch = path.match(/^\/api\/photos\/([a-zA-Z0-9-]{1,64})$/);
+      if (request.method === 'GET' && photoMatch) {
+        const photo = await env.DB.prepare('SELECT mime,data FROM photos WHERE id=?').bind(photoMatch[1]).first();
+        if (!photo) return json({error:'照片不存在'},404);
+        return new Response(new Uint8Array(photo.data), {headers:{...headers,'Content-Type':photo.mime,'Content-Security-Policy':"default-src 'none'; sandbox"}});
+      }
       if (request.method === "GET" && path === "/api/projects") {
         const offset = pageOffset(url);
         const { results } = await env.DB.prepare(
@@ -53,12 +60,12 @@ export default {
       if (request.method === "GET" && match) {
         const offset = pageOffset(url);
         const { results } = await env.DB.prepare(
-          "SELECT * FROM events WHERE project_id = ? ORDER BY occurred_at DESC, id LIMIT 101 OFFSET ?",
+          eventSelect + " WHERE project_id = ? ORDER BY occurred_at DESC, id LIMIT 101 OFFSET ?",
         )
           .bind(match[1], offset)
           .all();
         return json({
-          items: results.slice(0, 100),
+          items: results.slice(0, 100).map(eventRow),
           next: results.length > 100 ? offset + 100 : null,
         });
       }
@@ -69,7 +76,7 @@ export default {
           return json({ error: "投稿必須透過平台進行" }, 403);
         if (!request.headers.get("content-type")?.includes("application/json"))
           return json({ error: "需使用 JSON" }, 415);
-        const raw = await readLimited(request, 24000);
+        const raw = await readLimited(request, match ? 7050000 : 24000);
         let body;
         try {
           body = JSON.parse(raw);
@@ -79,6 +86,7 @@ export default {
         if (!body || typeof body !== "object")
           throw new InputError("資料格式錯誤");
         const fields = match ? validateEvent(body) : validateProject(body);
+        const photos = match ? validatePhotos(body.photos) : undefined;
         if (
           match &&
           !(await env.DB.prepare("SELECT id FROM projects WHERE id = ?")
@@ -91,7 +99,7 @@ export default {
         const id = crypto.randomUUID(),
           now = new Date().toISOString();
         if (match) {
-          await env.DB.prepare(
+          const insert = env.DB.prepare(
             "INSERT INTO events (id,project_id,title,description,occurred_at,url,created_at) VALUES (?,?,?,?,?,?,?)",
           )
             .bind(
@@ -102,8 +110,8 @@ export default {
               fields.occurred_at,
               fields.url,
               now,
-            )
-            .run();
+            );
+          await env.DB.batch([insert, ...await photoStatements(env.DB,id,photos)]);
         } else {
           await env.DB.prepare(
             "INSERT INTO projects (id,name,lat,lng,created_at) VALUES (?,?,?,?,?)",
@@ -115,7 +123,7 @@ export default {
           {
             id,
             ...fields,
-            ...(match ? { project_id: match[1] } : {}),
+            ...(match ? { project_id: match[1], photos: (photos || []).map(p => p.id) } : {}),
             created_at: now,
           },
           201,
@@ -133,19 +141,22 @@ export default {
         if (request.method === "PUT") {
           if (!request.headers.get('content-type')?.includes('application/json')) return json({error:'需使用 JSON'},415);
           let body;
-          try { body = JSON.parse(await readLimited(request,24000)); } catch (e) {
+          try { body = JSON.parse(await readLimited(request,removal[1] === 'events' ? 7050000 : 24000)); } catch (e) {
             if (e instanceof InputError) throw e;
             throw new InputError('JSON 格式錯誤');
           }
           if (!body || typeof body !== 'object') throw new InputError('資料格式錯誤');
           const isEvent = removal[1] === 'events';
           const f = isEvent ? validateEvent(body) : validateProject(body);
-          const result = isEvent
-            ? await env.DB.prepare('UPDATE events SET title=?, description=?, occurred_at=?, url=? WHERE id=?').bind(f.title,f.description,f.occurred_at,f.url,removal[2]).run()
-            : await env.DB.prepare('UPDATE projects SET name=?, lat=?, lng=? WHERE id=?').bind(f.name,f.lat,f.lng,removal[2]).run();
+          const photoOps = isEvent ? await photoStatements(env.DB,removal[2],validatePhotos(body.photos)) : [];
+          const update = isEvent
+            ? env.DB.prepare('UPDATE events SET title=?, description=?, occurred_at=?, url=? WHERE id=?').bind(f.title,f.description,f.occurred_at,f.url,removal[2])
+            : env.DB.prepare('UPDATE projects SET name=?, lat=?, lng=? WHERE id=?').bind(f.name,f.lat,f.lng,removal[2]);
+          if (isEvent && !(await env.DB.prepare('SELECT id FROM events WHERE id=?').bind(removal[2]).first())) return json({error:'紀錄已不存在，請重新整理'},404);
+          const [result] = await env.DB.batch([update,...photoOps]);
           if (!result.meta.changes) return json({error:'紀錄已不存在，請重新整理'},404);
-          const row = await env.DB.prepare(isEvent ? 'SELECT * FROM events WHERE id=?' : 'SELECT * FROM projects WHERE id=?').bind(removal[2]).first();
-          return json(row);
+          const row = await env.DB.prepare(isEvent ? eventSelect + ' WHERE events.id=?' : 'SELECT * FROM projects WHERE id=?').bind(removal[2]).first();
+          return json(isEvent ? eventRow(row) : row);
         }
         // Table is selected from a fixed allowlist, never arbitrary input.
         const statement =

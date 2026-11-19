@@ -8,3 +8,5 @@ archives/
 .deployment-secrets.json
 .admin-key.txt
 .DS_Store
+test-results/
+playwright-report/

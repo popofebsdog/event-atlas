@@ -25,14 +25,14 @@ export function validateProject(body) {
 export function validateEvent(body) {
   const title = text(body.title, "事件名稱", 160);
   const description = text(body.description, "事件敘述", 5000, true);
-  const url = text(body.url, "網頁網址", 2048);
+  const url = text(body.url ?? '', "網頁網址", 2048, true);
   let parsed;
   try {
-    parsed = new URL(url);
+    if (url) parsed = new URL(url);
   } catch {
     throw new InputError("請輸入完整 HTTPS 網址");
   }
-  if (parsed.protocol !== "https:" || parsed.username || parsed.password)
+  if (parsed && (parsed.protocol !== "https:" || parsed.username || parsed.password))
     throw new InputError("請使用不含帳密的 HTTPS 網址");
   const time = text(body.occurred_at, "時間", 40);
   if (
@@ -44,7 +44,7 @@ export function validateEvent(body) {
   return {
     title,
     description,
-    url: parsed.href,
+    url: parsed?.href || '',
     occurred_at: new Date(time).toISOString(),
   };
 }

@@ -24,6 +24,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Prepare local test configuration
+        run: node -e "require('fs').writeFileSync('.dev.vars', 'LOCAL_DEV=true\nADMIN_TOKEN=local-development-only-not-for-production\n')"
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - name: Verify public deployment settings
         run: node -e "if (!process.env.VITE_API_URL?.startsWith('https://') || !process.env.VITE_TURNSTILE_SITE_KEY) throw new Error('Set repository variables VITE_API_URL and VITE_TURNSTILE_SITE_KEY before deployment')"
         env:

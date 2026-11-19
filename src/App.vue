@@ -9,7 +9,8 @@ import {
 } from "vue";
 import L from "leaflet";
 import proj4 from "proj4";
-import { api, all } from "./api";
+import { api, all, photoUrl } from "./api";
+import { linkedMedia, preparePhoto } from './media';
 import Challenge from "./Challenge.vue";
 
 const projects = ref([]),
@@ -37,6 +38,21 @@ const title = ref(""),
   url = ref(""),
   activeEvent = ref(null);
 const embedLoading = ref(false);
+const photos = ref([]), photoBusy = ref(false), mediaError = ref('');
+const activeMedia = computed(() => linkedMedia(activeEvent.value?.url));
+const photoSource = photo => photo.startsWith('data:') ? photo : photoUrl(photo);
+async function selectPhotos(event) {
+  photoBusy.value = true;
+  notice.value = '';
+  try {
+    const files = [...event.target.files];
+    if (files.length + photos.value.length > 5) throw new Error('每個事件最多 5 張照片');
+    const added = [];
+    for (const file of files) added.push(await preparePhoto(file));
+    photos.value.push(...added);
+  } catch (e) { notice.value = e.message; }
+  finally { photoBusy.value = false; event.target.value = ''; }
+}
 const editingId = ref(''), adminKey = ref(''), deleteTarget = ref(null), deleteDialog = ref(null), deleteError = ref('');
 const exportDialog = ref(null), exportError = ref('');
 const coordinatePreview = ref(null), previewMapEl = ref(null);
@@ -62,7 +78,7 @@ const dateFormat = (value) =>
   });
 const canSubmit = computed(
   () =>
-    !busy.value && !!adminKey.value.trim() && (editingId.value || !import.meta.env.VITE_TURNSTILE_SITE_KEY || token.value),
+    !busy.value && !photoBusy.value && !!adminKey.value.trim() && (editingId.value || !import.meta.env.VITE_TURNSTILE_SITE_KEY || token.value),
 );
 const markerIcon = (active) =>
   L.divIcon({
@@ -141,6 +157,7 @@ function openForm(kind) {
     description.value = "";
     url.value = "";
     date.value = "";
+    photos.value = [];
   }
   dialog.value.showModal();
   nextTick(() => dialog.value.querySelector("input")?.focus());
@@ -152,6 +169,7 @@ function editRecord(kind, record) {
     name.value = record.name; lat.value = record.lat; lng.value = record.lng;
   } else {
     title.value = record.title; description.value = record.description; url.value = record.url;
+    photos.value = [...(record.photos || [])];
     date.value = new Date(Date.parse(record.occurred_at) + 8 * 3600000).toISOString().slice(0,16);
   }
 }
@@ -185,7 +203,7 @@ function pick(position) {
   openForm("project");
 }
 function closeForm() {
-  if (!busy.value) dialog.value.close();
+  if (!busy.value && !photoBusy.value) dialog.value.close();
 }
 function cleanForm() {
   previewMap?.remove();
@@ -267,6 +285,7 @@ async function save() {
           description: description.value,
           occurred_at,
           url: url.value,
+          photos: photos.value,
           token: token.value,
         }),
       });
@@ -286,7 +305,8 @@ async function save() {
   }
 }
 function view(event) {
-  embedLoading.value = true;
+  mediaError.value = '';
+  embedLoading.value = !!event.url;
   activeEvent.value = event;
 }
 watch(activeEvent, async (value) => {
@@ -441,7 +461,7 @@ onBeforeUnmount(() => {
               <time>{{ dateFormat(event.occurred_at) }}</time>
               <h3>{{ event.title }}</h3>
               <p v-if="event.description">{{ event.description }}</p>
-              <span class="source-link">查看網頁 →</span>
+              <span class="source-link">查看紀錄{{ event.photos?.length ? `・${event.photos.length} 張照片` : '' }} →</span>
             </button>
             <div class="record-actions">
               <button :aria-label="`編輯事件：${event.title}`" @click="editRecord('event', event)">編輯</button>
@@ -462,7 +482,7 @@ onBeforeUnmount(() => {
   <dialog
     ref="dialog"
     @close="cleanForm"
-    @cancel="busy && $event.preventDefault()"
+    @cancel="(busy || photoBusy) && $event.preventDefault()"
   >
     <form @submit.prevent="save">
       <div class="dialog-heading">
@@ -473,7 +493,7 @@ onBeforeUnmount(() => {
         </div>
         <button
           type="button"
-          :disabled="busy"
+          :disabled="busy || photoBusy"
           @click="closeForm"
           aria-label="關閉表單"
         >
@@ -554,14 +574,22 @@ onBeforeUnmount(() => {
           ></textarea>
         </label>
         <label
-          >介紹網頁／網誌網址<input
+          >介紹網頁／圖片／雲端檔案網址（選填）<input
             v-model="url"
             type="url"
-            required
             maxlength="2048"
             pattern="https://.*"
             placeholder="https://..."
         /></label>
+        <label>上傳照片（最多 5 張）<input type="file" accept="image/jpeg,image/png,image/webp" multiple :disabled="photoBusy || busy" @change="selectPhotos" /></label>
+        <p class="hint">JPEG、PNG、WebP，原始照片每張 10 MB 內；自動縮圖後上傳，網址可留白。</p>
+        <p v-if="photoBusy" role="status">正在處理照片…</p>
+        <div class="photo-thumbnails">
+          <figure v-for="(photo, index) in photos" :key="photo">
+            <img :src="photoSource(photo)" :alt="`照片 ${index + 1} 預覽`" />
+            <button type="button" :disabled="busy || photoBusy" @click="photos.splice(index,1)" :aria-label="`移除照片 ${index + 1}`">移除</button>
+          </figure>
+        </div>
       </template>
       <label>管理員金鑰<input v-model="adminKey" type="password" required autocomplete="off" placeholder="輸入管理員金鑰" /></label>
       <Challenge v-if="formKind && !editingId" :key="challengeKey" @token="token = $event" />
@@ -608,12 +636,20 @@ onBeforeUnmount(() => {
         <button @click="activeEvent = null" aria-label="關閉事件網頁">×</button>
       </header>
       <p class="reader-description">{{ activeEvent.description }}</p>
-      <p v-if="embedLoading" role="status" class="hint">
+      <div v-if="activeEvent.photos?.length" class="event-photos">
+        <img v-for="(photo,index) in activeEvent.photos" :key="photo" :src="photoUrl(photo)" :alt="`${activeEvent.title}・照片 ${index + 1}`" loading="lazy" @error="mediaError = '照片載入失敗，請稍後重試。'" />
+      </div>
+      <p v-if="activeMedia.kind === 'drive'" class="hint">雲端檔案請設定為「知道連結的任何人可檢視」。若仍要求登入，可直接上傳照片。</p>
+      <p v-if="activeMedia.kind === 'web'" class="hint">若外部網站限制內嵌，請改用照片上傳或公開圖片網址。</p>
+      <p v-if="embedLoading && activeMedia.kind !== 'none'" role="status" class="hint">
         正在載入事件網頁…
       </p>
+      <p v-if="mediaError" role="alert" class="error">{{ mediaError }}</p>
+      <img v-if="activeMedia.kind === 'image'" class="linked-photo" :src="activeMedia.src" :alt="activeEvent.title" referrerpolicy="no-referrer" @load="embedLoading = false" @error="embedLoading = false; mediaError = '圖片無法載入，請確認連結公開，或改用上傳照片。'" />
       <iframe
+        v-else-if="['web','drive'].includes(activeMedia.kind)"
         :key="activeEvent.id"
-        :src="activeEvent.url"
+        :src="activeMedia.src"
         :title="activeEvent.title"
         sandbox="allow-scripts allow-same-origin"
         referrerpolicy="no-referrer"
