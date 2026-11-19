@@ -33,6 +33,7 @@ test('upload photo without URL, view it, edit and remove it on desktop and mobil
     await expect(photo).toBeVisible();
     await page.screenshot({path:'test-results/photos-mobile.png'});
     await page.getByRole('button',{name:'關閉事件網頁'}).click();
+    await page.getByRole('button',{name:'時間軸',exact:true}).click();
     await page.getByRole('button',{name:'編輯事件：梅花颱風強降雨'}).click();
     await expect(page.getByAltText('照片 1 預覽')).toBeVisible();
     await page.getByRole('button',{name:'移除照片 1'}).click();

@@ -4,8 +4,10 @@ import {
   computed,
   onMounted,
   onBeforeUnmount,
+  onUnmounted,
   watch,
   nextTick,
+  shallowRef,
 } from "vue";
 import L from "leaflet";
 import proj4 from "proj4";
@@ -14,10 +16,15 @@ import { linkedMedia, preparePhoto } from './media';
 import {EVENT_TYPES} from '../shared/records';
 import {filterEvents} from './timeline';
 import Challenge from "./Challenge.vue";
+import MapAnnotations from './MapAnnotations.vue';
+import RegionOverview from './RegionOverview.vue';
 
 const projects = ref([]),
   events = ref([]),
-  selectedId = ref("");
+  selectedId = ref(readProjectId());
+const features=ref([]), mapRef=shallowRef(null), annotationDrawing=ref(false);
+const overviewView=ref(null),sidebarTab=ref('events'),mobileTab=ref('map'),showEvents=ref(true),showAnnotations=ref(true);
+function readProjectId(){return window.location.hash.match(/^#\/projects\/([a-zA-Z0-9-]{1,64})$/)?.[1] || '';}
 const busy = ref(false),
   loading = ref(true),
   error = ref(""),
@@ -29,7 +36,7 @@ const dialog = ref(null),
   challengeKey = ref(0),
   token = ref("");
 const name = ref(""),
-  projectKind = ref('area'), eventProjectId = ref(''), mapMode = ref('project'),
+  eventProjectId = ref(''), mapMode = ref('browse'),
   lat = ref(""),
   lng = ref(""),
   crs = ref("wgs84"),
@@ -51,19 +58,24 @@ function reloadPreview() {
   previewVersion.value++;
 }
 const photos = ref([]), photoBusy = ref(false), mediaError = ref('');
+let formGeneration=0;
 const activeMedia = computed(() => linkedMedia(activeEvent.value?.url));
 const photoSource = photo => photo.startsWith('data:') ? photo : photoUrl(photo);
 async function selectPhotos(event) {
+  const generation=formGeneration;
   photoBusy.value = true;
   notice.value = '';
   try {
     const files = [...event.target.files];
     if (files.length + photos.value.length > 5) throw new Error('每個事件最多 5 張照片');
     const added = [];
-    for (const file of files) added.push(await preparePhoto(file));
+    for (const file of files) {
+      added.push(await preparePhoto(file));
+      if(generation !== formGeneration)return;
+    }
     photos.value.push(...added);
-  } catch (e) { notice.value = e.message; }
-  finally { photoBusy.value = false; event.target.value = ''; }
+  } catch (e) { if(generation === formGeneration)notice.value = e.message; }
+  finally { if(generation === formGeneration)photoBusy.value = false; event.target.value = ''; }
 }
 const editingId = ref(''), adminKey = ref(''), deleteTarget = ref(null), deleteDialog = ref(null), deleteError = ref('');
 const exportDialog = ref(null), exportError = ref('');
@@ -72,7 +84,6 @@ const visibleEvents = computed(()=>filterEvents(events.value,{category:filterCat
 const hasFilters = computed(()=>!!(filterCategory.value || filterFrom.value || filterTo.value));
 const coordinatePreview = ref(null), previewMapEl = ref(null);
 let previewMap;
-let eventDefaultPoint = null;
 let map,
   markers,
   draftMarker,
@@ -96,10 +107,10 @@ const canSubmit = computed(
   () =>
     !busy.value && !photoBusy.value && !!adminKey.value.trim() && (editingId.value || !import.meta.env.VITE_TURNSTILE_SITE_KEY || token.value),
 );
-const markerIcon = (active, kind = 'area') =>
+const markerIcon = (active) =>
   L.divIcon({
     className: "",
-    html: `<span class="map-pin ${active ? "active" : ""} ${kind === 'rainfall_station' ? 'rain-station' : ''}">${kind === 'rainfall_station' ? '雨' : ''}</span>`,
+    html: `<span class="map-pin ${active ? "active" : ""}"></span>`,
     iconSize: [24, 24],
     iconAnchor: [12, 12],
   });
@@ -107,31 +118,28 @@ const markerIcon = (active, kind = 'area') =>
 function paint() {
   if (!markers) return;
   markers.clearLayers();
-  for (const p of projects.value) {
-    const label = document.createElement("span");
-    label.textContent = p.name;
-    L.marker([p.lat, p.lng], {
-      icon: markerIcon(p.id === selectedId.value,p.kind),
-      title: p.name,
-    })
-      .addTo(markers)
-      .bindTooltip(label)
-      .on("click", async () => {await choose(p); if (mapMode.value === 'event') openForm('event');});
-  }
+  if(!showEvents.value)return;
   for (const event of visibleEvents.value) {
-    if (typeof event.lat !== 'number' || typeof event.lng !== 'number') continue;
-    const label=document.createElement('span'); label.textContent=event.title;
-    L.marker([event.lat,event.lng],{icon:L.divIcon({className:'',html:'<span class="event-pin"></span>',iconSize:[16,16],iconAnchor:[8,8]}),title:`事件：${event.title}`,zIndexOffset:1000})
+    const lat=event.lat ?? selected.value?.lat,lng=event.lng ?? selected.value?.lng;
+    if(typeof lat !== 'number' || typeof lng !== 'number')continue;
+    const inherited=event.lat == null;
+    const label=document.createElement('span'); label.textContent=event.title + (inherited ? ' · 沿用地區座標' : '');
+    L.marker([lat,lng],{interactive:!annotationDrawing.value,icon:L.divIcon({className:'',html:`<span class="event-pin${inherited ? ' inherited' : ''}"></span>`,iconSize:[16,16],iconAnchor:[8,8]}),title:`事件：${event.title}`,zIndexOffset:1000})
       .addTo(markers).bindTooltip(label).on('click',()=>view(event));
   }
 }
-function locateEvent(event) {
+async function locateEvent(event) {
+  mobileTab.value='map';showEvents.value=true;await nextTick();map.invalidateSize();
   map.flyTo([event.lat ?? selected.value.lat,event.lng ?? selected.value.lng],Math.max(map.getZoom(),15));
+}
+async function locateFeature(feature){
+  mobileTab.value='map';showAnnotations.value=true;await nextTick();map.invalidateSize();
+  map.fitBounds(L.geoJSON({type:'Feature',geometry:feature.geometry,properties:{}}).getBounds(),{padding:[40,40],maxZoom:16});
 }
 async function loadEvents(id) {
   const version = ++generation;
-  const data = await all(`/projects/${id}/events`);
-  if (version === generation && id === selectedId.value) events.value = data;
+  const [data,annotations] = await Promise.all([all(`/projects/${id}/events`),all(`/projects/${id}/features`)]);
+  if (version === generation && id === selectedId.value) {events.value=data; features.value=annotations;}
 }
 async function refresh() {
   if (fetching) return;
@@ -139,12 +147,13 @@ async function refresh() {
   try {
     projects.value = await all("/projects");
     if (selectedId.value && !selected.value) {
-      selectedId.value = "";
       events.value = [];
+      features.value=[];
       activeEvent.value = null;
       generation++;
+      await nextTick();destroyProjectMap();
     }
-    if (selectedId.value) await loadEvents(selectedId.value);
+    if (selected.value) await loadEvents(selectedId.value);
     synced.value = new Date().toLocaleTimeString("zh-TW", {
       hour: "2-digit",
       minute: "2-digit",
@@ -157,31 +166,64 @@ async function refresh() {
     fetching = false;
   }
 }
-async function choose(p) {
+async function choose(p,navigate=true) {
+  resetTransient();
   selectedId.value = p.id;
+  if(navigate)window.location.hash=`/projects/${p.id}`;
   events.value = [];
+  features.value=[];
   activeEvent.value = null;
-  map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 12), { duration: 0.5 });
+  filterCategory.value='';filterFrom.value='';filterTo.value='';sidebarTab.value='events';mobileTab.value='map';showEvents.value=true;showAnnotations.value=true;mapMode.value='browse';
+  await nextTick();setupProjectMap();
   try {
     await loadEvents(p.id);
+    if(selectedId.value === p.id)fitProject();
   } catch (e) {
     error.value = e.message;
   }
 }
+function destroyProjectMap(){mapRef.value=null;map?.remove();map=null;markers=null;}
+function resetTransient(){
+  dialog.value?.close();deleteDialog.value?.close();exportDialog.value?.close();
+  cleanForm();deleteTarget.value=null;notice.value='';
+}
+async function goOverview(navigate=true){
+  resetTransient();
+  selectedId.value='';events.value=[];features.value=[];activeEvent.value=null;generation++;
+  if(navigate)window.location.hash='/';
+  await nextTick();destroyProjectMap();
+}
+function syncRoute(){
+  const id=readProjectId();if(id === selectedId.value)return;
+  if(!id){goOverview(false);return;}
+  const project=projects.value.find(p=>p.id === id);
+  if(project)choose(project,false);
+  else {resetTransient();selectedId.value=id;events.value=[];features.value=[];activeEvent.value=null;generation++;nextTick(destroyProjectMap);}
+}
+function createProject(point){lat.value=point?.lat ?? '';lng.value=point?.lng ?? '';openForm('project');}
+function pickEvent(){mapMode.value='event';mobileTab.value='map';sidebarTab.value='events';}
+function annotationInteraction(active){annotationDrawing.value=active;if(active){mapMode.value='browse';mobileTab.value='map';showAnnotations.value=true;}}
+function fitProject(){
+  if(!map || !selected.value)return;
+  const bounds=L.latLngBounds([[selected.value.lat,selected.value.lng]]);
+  for(const event of events.value)if(typeof event.lat === 'number' && typeof event.lng === 'number')bounds.extend([event.lat,event.lng]);
+  if(features.value.length)bounds.extend(L.geoJSON(features.value.map(f=>({type:'Feature',geometry:f.geometry,properties:{}}))).getBounds());
+  map.fitBounds(bounds,{padding:[40,40],maxZoom:15,animate:false});
+}
 function openForm(kind) {
+  if(busy.value)return;
+  formGeneration++;photoBusy.value=false;
   editingId.value = '';
-  formKind.value = kind === 'station' ? 'project' : kind;
+  formKind.value = kind;
   crs.value = 'wgs84';
   token.value = "";
   challengeKey.value++;
   notice.value = "";
   if (formKind.value === "project") {
     name.value = "";
-    projectKind.value = kind === 'station' ? 'rainfall_station' : 'area';
   } else {
-    eventProjectId.value = selectedId.value || projects.value[0]?.id || '';
+    eventProjectId.value = selectedId.value;
     const place=projects.value.find(p=>p.id === eventProjectId.value);
-    eventDefaultPoint = place ? {lat:place.lat,lng:place.lng} : null;
     lat.value = place?.lat ?? ''; lng.value = place?.lng ?? '';
     title.value = "";
     category.value = 'other'; source.value = '';
@@ -194,11 +236,11 @@ function openForm(kind) {
   nextTick(() => dialog.value.querySelector("input")?.focus());
 }
 function editRecord(kind, record) {
+  if(busy.value)return;
   openForm(kind);
   editingId.value = record.id;
   if (kind === 'project') {
     name.value = record.name; lat.value = record.lat; lng.value = record.lng;
-    projectKind.value = record.kind || 'area';
   } else {
     eventProjectId.value = record.project_id;
     lat.value = record.lat ?? selected.value.lat; lng.value = record.lng ?? selected.value.lng;
@@ -221,7 +263,7 @@ async function removeRecord() {
     generation++;
     if (target.kind === 'projects') {
       projects.value = projects.value.filter(p => p.id !== target.id);
-      if (selectedId.value === target.id) { selectedId.value = ''; events.value = []; activeEvent.value = null; }
+      if (selectedId.value === target.id) await goOverview();
     } else {
       events.value = events.value.filter(e => e.id !== target.id);
       if (activeEvent.value?.id === target.id) activeEvent.value = null;
@@ -231,22 +273,18 @@ async function removeRecord() {
   finally { busy.value = false; }
 }
 function pick(position) {
+  if (annotationDrawing.value || mapMode.value === 'browse') return;
   openForm(mapMode.value);
   lat.value = position.lat.toFixed(6);
   lng.value = position.lng.toFixed(6);
   if (draftMarker) draftMarker.remove();
   draftMarker = L.marker(position, { icon: markerIcon(true) }).addTo(map);
 }
-function changeEventProject() {
-  const place=projects.value.find(p=>p.id === eventProjectId.value);
-  const useDefault=(lat.value === '' && lng.value === '') || (crs.value === 'wgs84' && eventDefaultPoint && Number(lat.value) === eventDefaultPoint.lat && Number(lng.value) === eventDefaultPoint.lng);
-  if (place && useDefault) {crs.value='wgs84'; lat.value=place.lat; lng.value=place.lng;}
-  eventDefaultPoint = place ? {lat:place.lat,lng:place.lng} : null;
-}
 function closeForm() {
   if (!busy.value && !photoBusy.value) dialog.value.close();
 }
 function cleanForm() {
+  formGeneration++;photoBusy.value=false;photos.value=[];
   previewMap?.remove();
   previewMap = null;
   coordinatePreview.value = null;
@@ -290,7 +328,7 @@ async function locateCoordinates() {
       attribution: 'Source: <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer">Esri</a>, Vantor, Earthstar Geographics, and the GIS User Community'
     }).addTo(previewMap);
     L.marker([point.lat, point.lng], { icon: markerIcon(true) }).addTo(previewMap);
-    map.setView([point.lat, point.lng], 15);
+    map?.setView([point.lat, point.lng], 15);
   } catch (e) { notice.value = e.message; }
 }
 watch([lat, lng, east, north, crs], () => {
@@ -299,6 +337,7 @@ watch([lat, lng, east, north, crs], () => {
   coordinatePreview.value = null;
 });
 async function save() {
+  const fromRoute=selectedId.value,targetProjectId=eventProjectId.value;
   busy.value = true;
   notice.value = "";
   try {
@@ -308,19 +347,18 @@ async function save() {
         headers: {Authorization:`Bearer ${adminKey.value}`},
         body: JSON.stringify({
           name: name.value,
-          kind: projectKind.value,
           ...coordinates(),
           token: token.value,
         }),
       });
       if (editingId.value) projects.value = projects.value.map(item => item.id === p.id ? p : item);
       else projects.value.push(p);
-      await choose(p);
+      if(selectedId.value === fromRoute)await choose(p);
     } else {
       // datetime-local is explicitly Taiwan time, independent of the visitor's time zone.
       const occurred_at = new Date(`${date.value}:00+08:00`).toISOString();
-      if (!eventProjectId.value) throw new Error('請先建立並選擇地區或雨量站');
-      const saved = await api(editingId.value ? `/events/${editingId.value}` : `/projects/${eventProjectId.value}/events`, {
+      if (!targetProjectId) throw new Error('請先建立並選擇地區專案');
+      const saved = await api(editingId.value ? `/events/${editingId.value}` : `/projects/${targetProjectId}/events`, {
         method: editingId.value ? "PUT" : "POST",
         headers: {Authorization:`Bearer ${adminKey.value}`},
         body: JSON.stringify({
@@ -334,16 +372,17 @@ async function save() {
           token: token.value,
         }),
       });
-      if (selectedId.value !== eventProjectId.value) await choose(projects.value.find(p=>p.id === eventProjectId.value));
+      if(selectedId.value === saved.project_id){
       generation++;
       events.value = [...events.value.filter(e => e.id !== saved.id), saved].sort((a, b) =>
         b.occurred_at.localeCompare(a.occurred_at),
       );
+      }
     }
     dialog.value.close();
     error.value = "";
   } catch (e) {
-    notice.value = e.message;
+    if(selectedId.value === fromRoute)notice.value = e.message;
     token.value = "";
     challengeKey.value++;
   } finally {
@@ -372,7 +411,7 @@ async function downloadData() {
   busy.value = true;
   exportError.value = '';
   const projectId = selectedId.value;
-  const snapshot = JSON.stringify({ version: 1, project: selected.value, events: events.value }, null, 2);
+  const snapshot = JSON.stringify({ version: 2, project: selected.value, events: events.value, features:features.value }, null, 2);
   try {
     await api('/admin/verify', { method: 'POST', headers: {Authorization: `Bearer ${adminKey.value}`} });
     const blob = new Blob([snapshot], { type: 'application/json' });
@@ -388,8 +427,10 @@ async function downloadData() {
     busy.value = false;
   }
 }
-watch([projects, selectedId, visibleEvents], paint, { deep: true });
-onMounted(() => {
+watch([selectedId, visibleEvents, annotationDrawing, showEvents], paint, { deep: true });
+watch(mobileTab,async()=>{await nextTick();map?.invalidateSize();});
+function setupProjectMap(){
+  if(map || !document.getElementById('map'))return;
   map = L.map("map", { zoomControl: false }).setView([23.85, 121], 7);
   const basicMap = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -408,25 +449,31 @@ onMounted(() => {
   L.control.zoom({ position: "bottomleft" }).addTo(map);
   L.control.scale({position:'bottomleft',imperial:false}).addTo(map);
   markers = L.layerGroup().addTo(map);
+  mapRef.value=map;
   map.on("click", (e) => pick(e.latlng));
-  refresh();
+  paint();
+}
+onMounted(async () => {
+  window.addEventListener('hashchange',syncRoute);
+  await refresh();
+  if(selected.value){await nextTick();setupProjectMap();fitProject();}
   timer = setInterval(() => {
-    if (!document.hidden && !busy.value && !formKind.value && !deleteTarget.value) refresh();
+    if (!document.hidden && !busy.value && !formKind.value && !deleteTarget.value && !annotationDrawing.value) refresh();
   }, 15000);
 });
 onBeforeUnmount(() => {
   previewMap?.remove();
   clearInterval(timer);
-  map?.remove();
+  window.removeEventListener('hashchange',syncRoute);
   generation++;
 });
+onUnmounted(destroyProjectMap);
 </script>
 
 <template>
   <header class="topbar">
-    <a class="brand" href="./"><span class="brand-name">GeoPORT</span><span>調查報告紀事</span></a>
-    <button class="primary mobile-event-action" aria-label="快速新增事件" @click="openForm('event')">＋ 新增事件</button>
-    <div class="workspace-summary"><span>{{ projects.filter(p=>p.kind !== 'rainfall_station').length }} 地區</span><span>{{ projects.filter(p=>p.kind === 'rainfall_station').length }} 雨量站</span></div>
+    <a class="brand" href="#/"><span class="brand-name">GeoPORT</span><span>調查報告紀事</span></a>
+    <div class="workspace-summary"><span>{{ selected ? '專案工作區' : '地區專案總覽' }}</span></div>
     <div class="sync">
       <span :class="['status-dot', { offline: error }]"></span
       >{{ loading ? "連線中" : error ? "同步中斷" : `已同步 ${synced}`
@@ -436,112 +483,52 @@ onBeforeUnmount(() => {
     </div>
   </header>
   <div v-if="error" role="alert" class="banner">{{ error }}</div>
-  <main class="workspace">
-    <aside class="places">
-      <div class="section-heading">
-        <div>
-          <h1>地區與雨量站</h1>
-        </div>
-        <span class="count">{{ projects.length }}</span>
-      </div>
-      <button
-        class="primary wide"
-        @click="
-          lat = '';
-          lng = '';
-          openForm('project');
-        "
-      >
-        ＋ 座標建立地區
-      </button>
-      <button class="wide station-create" @click="lat=''; lng=''; openForm('station')">＋ 新增雨量站</button>
-      <nav aria-label="地區專案" class="place-list">
-        <button
-          v-for="p in projects"
-          :key="p.id"
-          :class="['place', { chosen: selectedId === p.id }]"
-          @click="choose(p)"
-        >
-          <span :class="['place-dot',{'station-dot':p.kind === 'rainfall_station'}]">{{ p.kind === 'rainfall_station' ? '雨' : '●' }}</span
-          ><span
-            ><strong>{{ p.name }}</strong
-            ><small
-              >{{ p.lat.toFixed(4) }} N · {{ p.lng.toFixed(4) }} E</small
-            ></span
-          ><span class="arrow">↗</span>
-        </button>
-        <p v-if="!loading && !projects.length" class="empty-small">尚無地區</p>
-      </nav>
-    </aside>
-    <section class="map-panel" aria-label="地圖選點">
-      <div id="map"></div>
-      <div class="map-label">
-        <div class="map-mode-buttons" aria-label="地圖新增模式">
-          <button v-for="mode in [{id:'project',label:'地區'},{id:'event',label:'事件'},{id:'station',label:'雨量站'}]" :key="mode.id" :aria-pressed="mapMode === mode.id" @click="mapMode=mode.id">{{ mode.label }}</button>
-        </div>
-        <span>點擊地圖新增{{ mapMode === 'event' ? '事件' : mapMode === 'station' ? '雨量站' : '地區' }}</span>
-      </div>
-      <div class="map-legend" aria-label="地圖圖例"><span><i class="legend-area"></i>地區</span><span><i class="legend-station"></i>雨量站</span><span title="只顯示目前選取地點的事件"><i class="legend-event"></i>此地事件</span></div>
-      <button class="map-reset" @click="map.setView([23.85, 121], 7)">
-        ↖ 臺灣全圖
-      </button>
-    </section>
-    <section class="timeline-panel" aria-label="事件時間軸">
-      <template v-if="selected">
+  <RegionOverview v-if="!selectedId" :projects="projects" :loading="loading" :view="overviewView" @open="choose" @create="createProject" @view="overviewView=$event" />
+  <template v-else-if="selected">
+    <nav class="project-nav" aria-label="專案導覽">
+      <button class="back-to-projects" @click="goOverview()" aria-label="所有地區專案">← 所有專案</button>
+      <div class="project-title"><span class="workspace-eyebrow">PROJECT WORKSPACE</span><h1>{{ selected.name }}</h1></div>
+      <button class="primary" :disabled="busy" @click="openForm('event')">＋ 新增事件</button>
+    </nav>
+    <div class="mobile-workspace-tabs" role="group" aria-label="專案檢視">
+      <button :aria-pressed="mobileTab === 'map'" @click="mobileTab='map'">地圖</button>
+      <button :aria-pressed="mobileTab === 'sidebar' && sidebarTab === 'events'" @click="mobileTab='sidebar';sidebarTab='events'">時間軸</button>
+      <button :aria-pressed="mobileTab === 'sidebar' && sidebarTab === 'annotations'" @click="mobileTab='sidebar';sidebarTab='annotations'">標註</button>
+    </div>
+    <main class="workspace project-workspace" :class="{'mobile-show-sidebar':mobileTab === 'sidebar'}" :aria-busy="busy">
+      <aside class="timeline-panel" aria-label="專案事件與標註">
         <div class="timeline-head">
-          <h2>{{ selected.name }}</h2>
-          <span class="place-type">{{ selected.kind === 'rainfall_station' ? '雨量站 · 自建站點' : '地區專案' }}</span>
-          <p class="coordinates">
-            {{ selected.lat.toFixed(6) }}, {{ selected.lng.toFixed(6) }}
-          </p>
-          <div class="actions">
-            <button class="primary" @click="openForm('event')">
-              ＋ 新增事件</button
-            ><button @click="askExport">匯出紀錄</button>
-          </div>
-          <button class="map-pick-action" @click="mapMode='event'">{{ mapMode === 'event' ? '請在地圖上點選事件位置' : '地圖選點新增事件' }}</button>
-          <div class="record-actions">
-            <button @click="editRecord('project', selected)">{{ selected.kind === 'rainfall_station' ? '編輯雨量站' : '編輯地區' }}</button>
-            <button class="danger-text" @click="askDelete('projects', selected)">{{ selected.kind === 'rainfall_station' ? '刪除雨量站' : '刪除地區' }}</button>
-          </div>
+          <div class="sidebar-tabs" role="group" aria-label="專案資料"><button :aria-pressed="sidebarTab === 'events'" @click="sidebarTab='events'">事件時間軸 <span>{{ events.length }}</span></button><button :aria-pressed="sidebarTab === 'annotations'" @click="sidebarTab='annotations'">地圖標註 <span>{{ features.length }}</span></button></div>
+          <div class="layer-controls"><label><input type="checkbox" v-model="showEvents" aria-label="顯示事件圖層" />事件圖層</label><label><input type="checkbox" v-model="showAnnotations" aria-label="顯示標註圖層" />標註圖層</label></div>
+          <div class="project-record-actions"><button @click="askExport">匯出專案</button><button @click="editRecord('project',selected)">編輯地區</button><button class="danger-text" @click="askDelete('projects',selected)">刪除地區</button></div>
         </div>
-        <div class="timeline-label">
-          <span>事件時間軸</span
-          ><small>{{ hasFilters ? visibleEvents.length + '/' : '' }}{{ events.length }} 筆 · 臺灣時間</small>
+        <div v-show="sidebarTab === 'events'">
+          <div class="timeline-label"><h2>事件時間軸</h2><small>{{ hasFilters ? visibleEvents.length + '/' : '' }}{{ events.length }} 筆 · 臺灣時間</small></div>
+          <div class="event-pick-container"><button class="map-pick-action" @click="pickEvent">{{ mapMode === 'event' ? '請在地圖上點選事件位置' : '地圖選點新增事件' }}</button></div>
+          <details class="timeline-filters"><summary>篩選紀錄{{ hasFilters ? ' · 已套用' : '' }}</summary><label>事件類型<select v-model="filterCategory"><option value="">全部類型</option><option v-for="(label,key) in EVENT_TYPES" :key="key" :value="key">{{ label }}</option></select></label><div class="field-row"><label>起日<input v-model="filterFrom" type="date" /></label><label>迄日<input v-model="filterTo" type="date" /></label></div><p class="hint">篩選只影響事件，地圖標註會保留。</p><p v-if="filterFrom && filterTo && filterFrom > filterTo" class="error" role="alert">起日不可晚於迄日</p><button type="button" @click="filterCategory='';filterFrom='';filterTo=''">清除篩選</button></details>
+          <ol class="timeline">
+            <li v-for="event in visibleEvents" :key="event.id">
+              <button class="event-card" :class="{chosen:activeEvent?.id === event.id}" @click="view(event)"><time>{{ dateFormat(event.occurred_at) }}</time><span class="event-type-badge">{{ EVENT_TYPES[event.category || 'other'] }}</span><h3>{{ event.title }}</h3><p v-if="event.description">{{ event.description }}</p><small class="event-coordinates">{{ (event.lat ?? selected.lat).toFixed(5) }}, {{ (event.lng ?? selected.lng).toFixed(5) }}{{ event.lat == null ? ' · 沿用地點' : '' }}</small><span class="source-link">查看紀錄{{ event.photos?.length ? `・${event.photos.length} 張照片` : '' }} →</span></button>
+              <div class="record-actions"><button :aria-label="`定位事件：${event.title}`" @click="locateEvent(event)">定位</button><button :aria-label="`編輯事件：${event.title}`" @click="editRecord('event',event)">編輯</button><button class="danger-text" :aria-label="`刪除事件：${event.title}`" @click="askDelete('events',event)">刪除</button></div>
+            </li>
+          </ol>
+          <p v-if="events.length && !visibleEvents.length" class="empty-small">沒有符合篩選條件的事件。可展開篩選紀錄並清除條件。</p>
+          <div v-if="!events.length" class="empty-small"><p>尚無事件</p><p class="hint">新增調查、雨量站或災害紀錄，並為每張圖卡設定位置。</p></div>
         </div>
-        <details class="timeline-filters"><summary>篩選紀錄{{ hasFilters ? ' · 已套用' : '' }}</summary><label>事件類型<select v-model="filterCategory"><option value="">全部類型</option><option v-for="(label,key) in EVENT_TYPES" :key="key" :value="key">{{ label }}</option></select></label><div class="field-row"><label>起日<input v-model="filterFrom" type="date" /></label><label>迄日<input v-model="filterTo" type="date" /></label></div><p v-if="filterFrom && filterTo && filterFrom > filterTo" class="error" role="alert">起日不可晚於迄日</p><button type="button" @click="filterCategory=''; filterFrom=''; filterTo=''">清除篩選</button></details>
-        <ol class="timeline">
-          <li v-for="event in visibleEvents" :key="event.id">
-            <button
-              class="event-card"
-              :class="{ chosen: activeEvent?.id === event.id }"
-              @click="view(event)"
-            >
-              <time>{{ dateFormat(event.occurred_at) }}</time>
-              <span class="event-type-badge">{{ EVENT_TYPES[event.category || 'other'] }}</span>
-              <h3>{{ event.title }}</h3>
-              <p v-if="event.description">{{ event.description }}</p>
-              <small class="event-coordinates">{{ (event.lat ?? selected.lat).toFixed(5) }}, {{ (event.lng ?? selected.lng).toFixed(5) }}{{ event.lat == null ? ' · 沿用地點' : '' }}</small>
-              <span class="source-link">查看紀錄{{ event.photos?.length ? `・${event.photos.length} 張照片` : '' }} →</span>
-            </button>
-            <div class="record-actions">
-              <button :aria-label="`定位事件：${event.title}`" @click="locateEvent(event)">定位</button>
-              <button :aria-label="`編輯事件：${event.title}`" @click="editRecord('event', event)">編輯</button>
-              <button class="danger-text" :aria-label="`刪除事件：${event.title}`" @click="askDelete('events', event)">刪除</button>
-            </div>
-          </li>
-        </ol>
-        <p v-if="events.length && !visibleEvents.length" class="empty-small">沒有符合篩選條件的事件。可展開篩選紀錄並清除條件。</p>
-        <div v-if="!events.length" class="empty-small">
-          <p>尚無事件</p><button class="primary" @click="openForm('event')">＋ 建立第一筆事件</button>
+        <div v-show="sidebarTab === 'annotations'">
+          <MapAnnotations v-if="mapRef" :key="selectedId" :map="mapRef" :project-id="selectedId" :features="features" :visible="showAnnotations" v-model:admin-key="adminKey" @drawing-change="annotationInteraction" @locate="locateFeature" @saved="items=>{if(items[0]?.project_id === selectedId) features.push(...items)}" @removed="id=>features=features.filter(f=>f.id !== id)" />
         </div>
-      </template>
-      <div v-else class="welcome">
-        <div class="welcome-heading"><h2>事件時間軸</h2><button class="primary" @click="openForm('event')">＋ 新增事件</button></div>
-        <div class="empty-timeline"><span class="empty-line"></span><p>選擇地區或雨量站<br>查看並新增調查紀錄</p><button @click="mapMode='event'">地圖選點新增事件</button></div>
-      </div>
-    </section>
-  </main>
+      </aside>
+      <section class="map-panel project-map-panel" aria-label="專案地圖">
+        <div id="map"></div>
+        <div class="map-label"><div class="map-mode-buttons" aria-label="地圖操作模式"><button :aria-pressed="mapMode === 'browse'" :disabled="annotationDrawing" @click="mapMode='browse'">瀏覽</button><button :aria-pressed="mapMode === 'event'" :disabled="annotationDrawing" @click="pickEvent">事件</button></div><span>{{ annotationDrawing ? '正在編輯地圖標註' : mapMode === 'event' ? '點擊地圖新增事件座標' : '此專案的事件與地圖標註' }}</span></div>
+        <div id="map-drawing-controls"></div>
+        <div class="map-legend" aria-label="地圖圖例"><span><i class="legend-event"></i>事件</span><span><i class="legend-annotation"></i>標註</span></div>
+        <button class="map-reset" @click="fitProject">↖ 專案範圍</button>
+      </section>
+    </main>
+  </template>
+  <section v-else class="missing-project"><h1>{{ loading ? '載入地區專案…' : '找不到地區專案' }}</h1><p>可返回總覽，選擇其他調查地區。</p><button @click="goOverview()" aria-label="所有地區專案">← 所有專案</button></section>
   <dialog
     ref="dialog"
     @close="cleanForm"
@@ -551,7 +538,7 @@ onBeforeUnmount(() => {
       <div class="dialog-heading">
         <div>
           <h2>
-            {{ formKind === 'project' ? (editingId ? '編輯' : '建立') + (projectKind === 'rainfall_station' ? '雨量站' : '地區專案') : (editingId ? '編輯事件' : '新增時間軸事件') }}
+            {{ formKind === 'project' ? (editingId ? '編輯' : '建立') + '地區專案' : (editingId ? '編輯事件' : '新增時間軸事件') }}
           </h2>
         </div>
         <button
@@ -563,14 +550,12 @@ onBeforeUnmount(() => {
           ×
         </button>
       </div>
-      <template v-if="formKind === 'project'">
-        <label>地點類型<select v-model="projectKind"><option value="area">地區專案</option><option value="rainfall_station">雨量站</option></select></label>
-      </template>
-      <template v-else>
-        <label>所屬地區／雨量站<select v-model="eventProjectId" required :disabled="!!editingId" @change="changeEventProject"><option disabled value="">請選擇地區或雨量站</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}{{ p.kind === 'rainfall_station' ? '（雨量站）' : '' }}</option></select></label>
-        <p v-if="!projects.length" class="hint">請先建立一個地區或雨量站。<button type="button" @click="openForm('project')">建立地區</button><button type="button" @click="openForm('station')">新增雨量站</button></p>
+      <template v-if="formKind === 'event'">
+        <label>所屬地區專案<select v-model="eventProjectId" required disabled><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option></select></label>
+        <p v-if="!projects.length" class="hint">請先建立一個地區專案。<button type="button" @click="openForm('project')">建立地區</button></p>
         <div class="field-row event-metadata-row"><label>事件時間（臺灣 UTC+8）<input v-model="date" type="datetime-local" required /></label><label>事件類型<select v-model="category"><option v-for="(label,key) in EVENT_TYPES" :key="key" :value="key">{{ label }}</option></select></label></div>
         <label>事件名稱<input v-model="title" required maxlength="160" placeholder="這個時間，發生了什麼？" /></label>
+        <p v-if="category === 'rainfall'" class="hint">雨量站可直接以站名建立事件，並填入該站座標；雨量數值與觀測時段可記在敘述中。</p>
         <p class="coordinate-heading">事件座標</p><p class="hint">預填所屬地點座標，可修改為實際位置；兩欄留白則沿用地點。</p>
       </template>
       <template v-if="formKind">
@@ -622,7 +607,7 @@ onBeforeUnmount(() => {
           <p class="hint">{{ coordinatePreview.lat.toFixed(6) }}, {{ coordinatePreview.lng.toFixed(6) }}</p>
         </div>
       </template>
-      <label v-if="formKind === 'project'" class="project-name-field">{{ projectKind === 'rainfall_station' ? '雨量站名稱' : '地區名稱' }}<input v-model="name" required maxlength="100" :placeholder="projectKind === 'rainfall_station' ? '輸入站名' : '例如：太魯閣・燕子口'" /></label>
+      <label v-if="formKind === 'project'" class="project-name-field">地區名稱<input v-model="name" required maxlength="100" placeholder="例如：太魯閣・燕子口" /></label>
       <template v-else>
         <label
           >事件敘述<textarea

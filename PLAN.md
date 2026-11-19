@@ -1,6 +1,18 @@
 # Implementation record
 
-## Current work — 2026-11-19
+## Current work — two map levels, 2026-11-19
+
+User clarification: the overview map contains region projects; entering a project opens its own map. Rainfall stations are coordinate-bearing event cards within a region project, not a separate project type. Project maps accept independent point, line and polygon annotations. Create sample events as part of verification.
+
+Continue in `/Users/lanyanlin/Desktop/event-atlas`. Detailed active checklist: `.Codex/plans/2026-11-19-project-map-annotations.md`. WebGIS expert consulted for both information architecture and implementation review. Current documentation: `docs/webgis-usage-roadmap.md`.
+
+- [x] Restore region projects in the overview; introduce hash-routed overview/project workspaces, project-scoped maps and responsive sidebar/map views.
+- [x] Add validated project geometry storage/API and point/line/polygon drawing, GeoJSON import/export, layer controls and coordinate-bearing station events.
+- [x] Address expert findings: inherited event coordinates, overview coordinate previews, mobile location display, route draft cleanup, fixed project ownership, stale save responses and overview resize.
+- [x] Complete expert/code/visual review; 32 unit tests, 11 browser tests, build and npm audit passed. Demo created locally (3 events and 3 geometries); production data backed up before the additive schema update.
+- [ ] Publish, add clearly labeled production demo data, verify original data and live routes/maps.
+
+## Previous completed work — 2026-11-19
 
 Continue in `/Users/lanyanlin/Desktop/event-atlas`. The Codex chat belongs to the GeoPort workspace, but this is an independent application. Do not switch this work to `/Users/lanyanlin/Desktop/geoport`.
 

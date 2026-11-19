@@ -4,7 +4,7 @@ import {validateProject,validateEvent} from '../worker/validation.js';
 import {linkedMedia} from '../src/media.js';
 import {filterEvents} from '../src/timeline.js';
 const event={title:'觀測',description:'',occurred_at:'2026-11-19T12:00:00Z'};
-test('manual rainfall stations have validated type and coordinates',()=>{
+test('legacy station projects remain compatible while region projects default to area',()=>{
   assert.equal(validateProject({name:'站點',lat:24,lng:121,kind:'rainfall_station'}).kind,'rainfall_station');
   assert.equal(validateProject({name:'地區',lat:24,lng:121}).kind,'area');
   assert.throws(()=>validateProject({name:'站點',lat:24,lng:121,kind:'unknown'}));

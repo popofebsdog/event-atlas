@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../worker/index.js';
 
-for (const path of ['/api/projects', '/api/projects/example/events']) {
+for (const path of ['/api/projects', '/api/projects/example/events', '/api/projects/example/features']) {
   for (const key of [undefined, 'wrong-key']) {
     test(`POST ${path} rejects ${key ? 'incorrect' : 'missing'} key before validation or database access`, async () => {
       const response = await worker.fetch(new Request(`http://localhost${path}`, {

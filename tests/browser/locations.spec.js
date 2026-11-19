@@ -1,27 +1,19 @@
 import {test,expect} from '@playwright/test';
 const headers={Origin:'http://localhost:5174',Authorization:'Bearer local-development-only-not-for-production'};
-test('visible event entry, manual station, independent event point, NCDR fallback and map-picked event',async({page,request})=>{
+test('regions stay projects; station observations are coordinate-bearing events with synchronized filters',async({page,request})=>{
   const p=await request.post('http://localhost:8787/api/projects',{headers,data:{name:'事件測試地區',lat:24,lng:121}});
   const project=await p.json();
-  let station;
   try {
     await page.route('**/tile.openstreetmap.org/**',r=>r.abort());
     await page.route('**/services.arcgisonline.com/**',r=>r.abort());
     await page.goto('/');
+    await expect(page.getByRole('heading',{name:'地區專案',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'＋ 新增雨量站',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:/● 事件測試地區/}).click();
     await page.getByRole('button',{name:'＋ 新增事件',exact:true}).click();
-    await expect(page.getByLabel('所屬地區／雨量站')).toBeVisible();
+    await expect(page.getByLabel('所屬地區專案')).toBeVisible();
     await expect(page.getByLabel('緯度 Latitude')).toHaveValue('24');
-    await page.getByRole('button',{name:'關閉表單'}).click();
-    await page.getByRole('button',{name:'＋ 新增雨量站',exact:true}).click();
-    await page.getByLabel('雨量站名稱',{exact:true}).fill('自建雨量站測試');
-    await page.getByLabel('緯度 Latitude').fill('25');
-    await page.getByLabel('經度 Longitude').fill('121.5');
     await page.locator('dialog[open]').getByLabel('管理員金鑰',{exact:true}).fill('local-development-only-not-for-production');
-    const created=page.waitForResponse(r=>r.url().endsWith('/api/projects') && r.request().method()==='POST');
-    await page.getByRole('button',{name:'儲存並公開',exact:true}).click();
-    station=await(await created).json();
-    await expect(page.getByText('雨量站 · 自建站點',{exact:true})).toBeVisible();
-    await page.getByRole('button',{name:'＋ 新增事件',exact:true}).click();
     await page.getByLabel('緯度 Latitude').fill('24.91');
     await page.getByLabel('經度 Longitude').fill('121.44');
     await page.getByLabel('事件時間（臺灣 UTC+8）').fill('2026-11-19T20:00');
@@ -52,7 +44,8 @@ test('visible event entry, manual station, independent event point, NCDR fallbac
     await expect(page.getByRole('heading',{name:'新增時間軸事件'})).toBeVisible();
     const pickedLat=await page.getByLabel('緯度 Latitude').inputValue();
     const pickedLng=await page.getByLabel('經度 Longitude').inputValue();
-    await page.getByLabel('所屬地區／雨量站').selectOption(project.id);
+    await expect(page.getByLabel('所屬地區專案')).toBeDisabled();
+    await expect(page.getByLabel('所屬地區專案')).toHaveValue(project.id);
     await expect(page.getByLabel('緯度 Latitude')).toHaveValue(pickedLat);
     await expect(page.getByLabel('經度 Longitude')).toHaveValue(pickedLng);
     await page.getByLabel('事件時間（臺灣 UTC+8）').fill('2026-11-19T21:00');
@@ -64,15 +57,14 @@ test('visible event entry, manual station, independent event point, NCDR fallbac
     expect(data.items[0].lng).toBe(Number(pickedLng));
     await page.screenshot({path:'test-results/workbench-desktop.png'});
     await page.setViewportSize({width:390,height:844});
-    await expect(page.getByRole('button',{name:'快速新增事件'})).toBeVisible();
     await page.getByRole('button',{name:'＋ 新增事件',exact:true}).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button',{name:'＋ 新增事件',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'時間軸',exact:true}).click();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({path:'test-results/workbench-mobile.png'});
     await page.setViewportSize({width:320,height:768});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally {
     await request.delete(`http://localhost:8787/api/projects/${project.id}`,{headers});
-    if (station?.id) await request.delete(`http://localhost:8787/api/projects/${station.id}`,{headers});
   }
 });

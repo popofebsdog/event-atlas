@@ -1,5 +1,6 @@
 import { InputError, validateProject, validateEvent } from "./validation.js";
 import {validatePhotos, photoStatements, eventSelect, eventRow} from './photos.js';
+import {readAnnotations} from '../shared/annotations.js';
 
 export default {
   async fetch(request, env) {
@@ -57,6 +58,12 @@ export default {
       const match = path.match(
         /^\/api\/projects\/([a-zA-Z0-9-]{1,64})\/events$/,
       );
+      const featureMatch=path.match(/^\/api\/projects\/([a-zA-Z0-9-]{1,64})\/features$/);
+      if (request.method === 'GET' && featureMatch) {
+        const offset=pageOffset(url);
+        const {results}=await env.DB.prepare('SELECT * FROM project_features WHERE project_id=? ORDER BY created_at,id LIMIT 101 OFFSET ?').bind(featureMatch[1],offset).all();
+        return json({items:results.slice(0,100).map(row=>({...row,geometry:JSON.parse(row.geometry)})),next:results.length>100 ? offset+100 : null});
+      }
       if (request.method === "GET" && match) {
         const offset = pageOffset(url);
         const { results } = await env.DB.prepare(
@@ -69,14 +76,14 @@ export default {
           next: results.length > 100 ? offset + 100 : null,
         });
       }
-      if (request.method === "POST" && (path === "/api/projects" || match)) {
+      if (request.method === "POST" && (path === "/api/projects" || match || featureMatch)) {
         if (!env.ADMIN_TOKEN || request.headers.get("Authorization") !== `Bearer ${env.ADMIN_TOKEN}`)
           return json({ error: "需要管理員權限" }, 403);
         if (!origin || !allowed.includes(origin))
           return json({ error: "投稿必須透過平台進行" }, 403);
         if (!request.headers.get("content-type")?.includes("application/json"))
           return json({ error: "需使用 JSON" }, 415);
-        const raw = await readLimited(request, match ? 7050000 : 24000);
+        const raw = await readLimited(request, featureMatch ? 512000 : match ? 7050000 : 24000);
         let body;
         try {
           body = JSON.parse(raw);
@@ -85,17 +92,26 @@ export default {
         }
         if (!body || typeof body !== "object")
           throw new InputError("資料格式錯誤");
-        const fields = match ? validateEvent(body) : validateProject(body);
+        let fields;
+        if (featureMatch) {
+          try { fields=readAnnotations(body.geojson); } catch(e) {throw new InputError(e.message);}
+        } else fields = match ? validateEvent(body) : validateProject(body);
         const photos = match ? validatePhotos(body.photos) : undefined;
         if (
-          match &&
+          (match || featureMatch) &&
           !(await env.DB.prepare("SELECT id FROM projects WHERE id = ?")
-            .bind(match[1])
+            .bind((match || featureMatch)[1])
             .first())
         )
           return json({ error: "地區不存在" }, 404);
         if (!(await verifyChallenge(body.token, request, env)))
           return json({ error: "驗證未完成或已過期，請重新驗證" }, 403);
+        if (featureMatch) {
+          const created_at=new Date().toISOString();
+          const items=fields.map(field=>({id:crypto.randomUUID(),project_id:featureMatch[1],...field,created_at}));
+          await env.DB.batch(items.map(item=>env.DB.prepare('INSERT INTO project_features (id,project_id,name,description,geometry,created_at) VALUES (?,?,?,?,?,?)').bind(item.id,item.project_id,item.name,item.description,JSON.stringify(item.geometry),created_at)));
+          return json({items},201);
+        }
         const id = crypto.randomUUID(),
           now = new Date().toISOString();
         if (match) {
@@ -132,7 +148,7 @@ export default {
         );
       }
       const removal = path.match(
-        /^\/api\/(events|projects)\/([a-zA-Z0-9-]{1,64})$/,
+        /^\/api\/(events|projects|features)\/([a-zA-Z0-9-]{1,64})$/,
       );
       if (["PUT", "DELETE"].includes(request.method) && removal) {
         if (
@@ -140,6 +156,11 @@ export default {
           request.headers.get("Authorization") !== `Bearer ${env.ADMIN_TOKEN}`
         )
           return json({ error: "需要管理員權限" }, 403);
+        if (removal[1] === 'features') {
+          if (request.method !== 'DELETE') return json({error:'標註僅支援刪除後重新繪製'},405);
+          const result=await env.DB.prepare('DELETE FROM project_features WHERE id=?').bind(removal[2]).run();
+          return json({deleted:result.meta.changes>0});
+        }
         if (request.method === "PUT") {
           if (!request.headers.get('content-type')?.includes('application/json')) return json({error:'需使用 JSON'},415);
           let body;
