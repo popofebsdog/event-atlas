@@ -100,7 +100,7 @@ export default {
           now = new Date().toISOString();
         if (match) {
           const insert = env.DB.prepare(
-            "INSERT INTO events (id,project_id,title,description,occurred_at,url,created_at) VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO events (id,project_id,title,description,occurred_at,url,created_at,lat,lng,category,source,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
           )
             .bind(
               id,
@@ -110,20 +110,22 @@ export default {
               fields.occurred_at,
               fields.url,
               now,
+              fields.lat, fields.lng,
+              fields.category,fields.source,now,
             );
           await env.DB.batch([insert, ...await photoStatements(env.DB,id,photos)]);
         } else {
           await env.DB.prepare(
-            "INSERT INTO projects (id,name,lat,lng,created_at) VALUES (?,?,?,?,?)",
+            "INSERT INTO projects (id,name,lat,lng,created_at,kind) VALUES (?,?,?,?,?,?)",
           )
-            .bind(id, fields.name, fields.lat, fields.lng, now)
+            .bind(id, fields.name, fields.lat, fields.lng, now,fields.kind)
             .run();
         }
         return json(
           {
             id,
             ...fields,
-            ...(match ? { project_id: match[1], photos: (photos || []).map(p => p.id) } : {}),
+            ...(match ? { project_id: match[1], photos: (photos || []).map(p => p.id), updated_at:now } : {}),
             created_at: now,
           },
           201,
@@ -150,8 +152,8 @@ export default {
           const f = isEvent ? validateEvent(body) : validateProject(body);
           const photoOps = isEvent ? await photoStatements(env.DB,removal[2],validatePhotos(body.photos)) : [];
           const update = isEvent
-            ? env.DB.prepare('UPDATE events SET title=?, description=?, occurred_at=?, url=? WHERE id=?').bind(f.title,f.description,f.occurred_at,f.url,removal[2])
-            : env.DB.prepare('UPDATE projects SET name=?, lat=?, lng=? WHERE id=?').bind(f.name,f.lat,f.lng,removal[2]);
+            ? env.DB.prepare('UPDATE events SET title=?, description=?, occurred_at=?, url=?, lat=CASE WHEN ? THEN ? ELSE lat END, lng=CASE WHEN ? THEN ? ELSE lng END, category=CASE WHEN ? THEN ? ELSE category END, source=CASE WHEN ? THEN ? ELSE source END, updated_at=? WHERE id=?').bind(f.title,f.description,f.occurred_at,f.url,body.lat !== undefined ? 1 : 0,f.lat,body.lng !== undefined ? 1 : 0,f.lng,body.category !== undefined ? 1 : 0,f.category,body.source !== undefined ? 1 : 0,f.source,new Date().toISOString(),removal[2])
+            : env.DB.prepare('UPDATE projects SET name=?, lat=?, lng=?, kind=CASE WHEN ? THEN ? ELSE kind END WHERE id=?').bind(f.name,f.lat,f.lng,body.kind !== undefined ? 1 : 0,f.kind,removal[2]);
           if (isEvent && !(await env.DB.prepare('SELECT id FROM events WHERE id=?').bind(removal[2]).first())) return json({error:'紀錄已不存在，請重新整理'},404);
           const [result] = await env.DB.batch([update,...photoOps]);
           if (!result.meta.changes) return json({error:'紀錄已不存在，請重新整理'},404);

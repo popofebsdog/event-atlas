@@ -3,6 +3,7 @@ export function linkedMedia(value) {
   let url;
   try { url = new URL(value); } catch { return {kind: 'none', src: ''}; }
   if (url.protocol !== 'https:' || url.username || url.password) return {kind: 'none', src: ''};
+  if (url.hostname === 'den.ncdr.nat.gov.tw') return {kind:'external',src:url.href};
   if (url.hostname === 'drive.google.com') {
     const id = url.pathname.match(/^\/file\/(?:u\/\d+\/)?d\/([\w-]+)(?:\/|$)/)?.[1] || url.searchParams.get('id');
     if (id && /^[\w-]+$/.test(id)) {

@@ -3,4 +3,5 @@ import App from "./App.vue";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import "./reader.css";
+import "./workbench.css";
 createApp(App).mount("#app");

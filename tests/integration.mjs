@@ -17,6 +17,29 @@ const p = await request("/projects", "POST", {
 }, auth);
 assert.equal(p.status, 201, JSON.stringify(p.data));
 try {
+  const station=await request('/projects','POST',{name:'自建雨量站測試',lat:25,lng:121.5,kind:'rainfall_station'},auth);
+  assert.equal(station.status,201);
+  try {
+    const fields={title:'站點觀測',description:'',occurred_at:'2026-11-19T12:00:00Z',lat:24.9,lng:121.4,category:'rainfall',source:'自建站現地調查'};
+    const observation=await request(`/projects/${station.data.id}/events`,'POST',fields,auth);
+    assert.equal(observation.status,201);
+    assert.equal(observation.data.lat,24.9);
+    const legacyEdit=await request(`/events/${observation.data.id}`,'PUT',{title:'舊客戶端編輯',description:'',occurred_at:fields.occurred_at},auth);
+    assert.equal(legacyEdit.status,200);
+    assert.equal(legacyEdit.data.lat,24.9);
+    assert.equal(legacyEdit.data.lng,121.4);
+    assert.equal(legacyEdit.data.category,'rainfall');
+    assert.equal(legacyEdit.data.source,'自建站現地調查');
+    assert.equal(legacyEdit.data.created_at,observation.data.created_at);
+    assert.ok(Date.parse(legacyEdit.data.updated_at) >= Date.parse(observation.data.updated_at));
+    const stationEdit=await request(`/projects/${station.data.id}`,'PUT',{name:'改名站點',lat:25,lng:121.5},auth);
+    assert.equal(stationEdit.data.kind,'rainfall_station');
+    assert.equal((await request(`/events/${observation.data.id}`,'PUT',{...fields,lat:200},auth)).status,400);
+    const explicitReset=await request(`/events/${observation.data.id}`,'PUT',{...fields,lat:null,lng:null},auth);
+    assert.equal(explicitReset.data.lat,null);
+    assert.equal(explicitReset.data.lng,null);
+  } finally {await request(`/projects/${station.data.id}`,'DELETE',undefined,auth);}
+  console.log('PASS manual station, independent event coordinates, legacy edits preserve coordinates/type, explicit inheritance and invalid location rejection');
   const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII=';
   const photoEvent = {title:'只有照片，沒有網址',description:'照片測試',occurred_at:'2026-09-13T06:07:00Z',photos:[png]};
   assert.equal((await request(`/projects/${p.data.id}/events`,'POST',photoEvent)).status,403);

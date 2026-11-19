@@ -1,0 +1,3 @@
+ALTER TABLE projects ADD COLUMN kind TEXT NOT NULL DEFAULT 'area' CHECK(kind IN ('area','rainfall_station'));
+ALTER TABLE events ADD COLUMN lat REAL CHECK(lat IS NULL OR lat BETWEEN -90 AND 90);
+ALTER TABLE events ADD COLUMN lng REAL CHECK(lng IS NULL OR lng BETWEEN -180 AND 180);

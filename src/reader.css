@@ -13,7 +13,23 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow:hidden;
+  min-height:0;
 }
+.reader-dialog.reader-wide { width:100vw; }
+.reader header,.reader-tabs,.reader-event-info { flex-shrink:0; }
+.reader-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.reader-actions button { font-size:12px; }
+.reader-tabs { display:flex; gap:8px; }
+.reader-tabs button[aria-pressed="true"] { background:var(--accent); color:white; border-color:var(--accent); }
+.reader-event-info { font-size:12px; color:var(--muted); max-height:25dvh; overflow:auto; }
+.reader-event-info summary { cursor:pointer; }
+.reader-event-info[open] summary { margin-bottom:12px; }
+.reader-event-info .reader-record-meta,.reader-event-info .reader-source { margin-top:8px; }
+.reader-audit { display:grid; grid-template-columns:auto 1fr; gap:8px 16px; margin:12px 0 0; }
+.reader-audit dd { margin:0; }
+.reader-web-pane { display:flex; flex-direction:column; flex:1; min-height:0; gap:8px; overflow:auto; }
+.reader-photo-pane { flex:1; min-height:0; overflow:auto; align-content:start; }
 .coordinate-preview { margin-top: 16px; }
 .coordinate-map { height: 220px; border: 1px solid var(--line); border-radius: 6px; }
 .project-name-field { margin-top: 16px; }
@@ -23,9 +39,10 @@
 .danger-text { color:#a23c2e; }
 .danger-button { background:#a23c2e; color:white; border-color:#a23c2e; }
 .danger-button:hover { background:#822c20; }
-.reader-dialog .reader > iframe {
-  flex: 1;
-  min-height: 300px;
+.reader-web-pane > iframe {
+  flex: 1 0 0;
+  min-height:200px;
+  height:100%;
 }
 .photo-thumbnails { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
 .photo-thumbnails figure { margin:0; width:120px; }
@@ -40,4 +57,5 @@
   .reader-dialog {
     width: 100%;
   }
+  .reader-actions > button:first-child {display:none;}
 }
