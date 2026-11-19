@@ -34,9 +34,13 @@ button:active:not(:disabled),.button:active { transform:translateY(1px); }
 .event-pin { display:block; width:16px; height:16px; background:var(--event); border:3px solid white; border-radius:50%; box-shadow:0 1px 4px #203a4250; }
 .event-pin.inherited {border-style:dashed;}
 .event-pin.shared {width:24px;height:24px;color:white;font-size:12px;line-height:18px;text-align:center;font-weight:600;}
+.event-pin.numbered {width:28px;height:28px;border-width:2px;text-align:center;color:white;font-size:12px;font-weight:600;line-height:24px;}
+.event-pin.numbered.shared {width:32px;height:32px;line-height:28px;}
+.event-pin.focused {background:var(--accent);box-shadow:0 0 0 6px #176b7033;}
 .leaflet-tooltip.map-name-label {width:max-content;white-space:normal;max-width:224px;padding:4px 8px;border-radius:6px;border-color:var(--line);color:var(--ink);font-family:"Noto Sans TC",sans-serif;box-shadow:0 1px 4px #203a4220;}
 .leaflet-tooltip.map-name-label .map-label-link {display:block;width:100%;padding:4px 0;border:0;border-radius:0;background:transparent;text-align:left;font-size:12px;line-height:16px;color:var(--ink);}
 .leaflet-tooltip.map-name-label .map-label-link:hover {color:var(--accent);text-decoration:underline;}
+.leaflet-tooltip.map-name-label .map-label-link.is-focused {color:var(--accent);font-weight:700;text-decoration:underline;}
 .event-map-names {max-height:160px;overflow:auto;}
 .event-map-names small {display:block;font-size:12px;line-height:16px;color:var(--muted);padding:4px 0;}
 .map-reset { bottom:24px; right:16px; font-size:12px; }
@@ -160,3 +164,10 @@ label input,label select,label textarea { padding:12px; }
   .project-workspace.mobile-show-sidebar .timeline-panel{display:block;}
   .project-workspace .sidebar-tabs{display:none;}
 }
+
+.project-workspace .project-map-panel {display:flex;flex-direction:column;}
+.project-map-canvas {position:relative;flex:1;min-height:0;overflow:hidden;}
+/* Keep point symbols clickable when nearby feature names overlap them. */
+.project-map-canvas .leaflet-marker-pane {z-index:660;}
+.timeline-order {display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;margin-right:8px;border-radius:4px;background:var(--tint);color:var(--accent);font-size:12px;line-height:16px;vertical-align:middle;}
+.event-card.chosen .timeline-order {background:var(--accent);color:white;}

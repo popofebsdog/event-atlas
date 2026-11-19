@@ -4,3 +4,9 @@ export function filterEvents(events, {category = '', from = '', to = ''} = {}) {
     return (!category || (event.category || 'other') === category) && (!from || date >= from) && (!to || date <= to);
   });
 }
+export function chronologicalEvents(events){
+  return [...events].sort((a,b)=>Date.parse(a.occurred_at)-Date.parse(b.occurred_at) || (a.created_at || '').localeCompare(b.created_at || '') || String(a.id).localeCompare(String(b.id)));
+}
+export function formatEventTime(value){
+  return new Date(value).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+}

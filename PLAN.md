@@ -1,5 +1,15 @@
 # Implementation record
 
+## Active update — chronological browsing and annotation cards
+
+User wants a time-ordered map story rather than loose collection. Confirmed scope: manual previous/next plus an event overview, with chronological numbering and synchronized map/card focus; no autoplay. Also requested information cards for annotations and visibly different map symbols because the old hollow annotation point was too faint. Work in `/Users/lanyanlin/Desktop/event-atlas`; active checklist is `.Codex/plans/2026-11-19-chronological-map-tour.md`. Existing data and backend schema remain unchanged.
+
+- [x] Implement chronological event guide, numbered circles, map/card selection and reader navigation, including filters, shared coordinates and mobile sizing.
+- [x] Add independent blue annotation information cards, filled square points, stronger line/polygon styling and map-to-card selection.
+- [x] Prevent annotation clicks from also creating events; retain blank-map event entry and drawing across existing features. WebGIS expert verified these interactions in Chromium with no runtime errors.
+- [x] Verify 39 unit checks, 21 browser scenarios (including integration coverage), production build, desktop/mobile screenshots and clean diff checks.
+- [ ] Publish and verify actual production demo; compare public records with `/tmp/event-atlas-before-tour.json`.
+
 ## Completed update — 2026-11-19
 
 This is the independent application at `/Users/lanyanlin/Desktop/event-atlas`. The Codex chat is attached to the GeoPort workspace, but the application changes belong here; GeoPort was not changed.

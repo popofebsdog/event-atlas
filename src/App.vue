@@ -15,10 +15,11 @@ import proj4 from "proj4";
 import { api, all, photoUrl, pdfUrl } from "./api";
 import { linkedMedia, preparePhoto, pdfPage } from './media';
 import {EVENT_TYPES} from '../shared/records';
-import {filterEvents} from './timeline';
+import {filterEvents,chronologicalEvents,formatEventTime} from './timeline';
 import Challenge from "./Challenge.vue";
 import MapAnnotations from './MapAnnotations.vue';
 import RegionOverview from './RegionOverview.vue';
+import EventTour from './EventTour.vue';
 const PdfPreview=defineAsyncComponent(()=>import('./PdfPreview.vue'));
 
 const projects = ref([]),
@@ -26,6 +27,7 @@ const projects = ref([]),
   selectedId = ref(readProjectId());
 const features=ref([]), mapRef=shallowRef(null), annotationDrawing=ref(false);
 const overviewView=ref(null),sidebarTab=ref('events'),mobileTab=ref('map'),showEvents=ref(true),showAnnotations=ref(true);
+const focusedEventId=ref(''),tourOverview=ref(false);
 function readProjectId(){return window.location.hash.match(/^#\/projects\/([a-zA-Z0-9-]{1,64})$/)?.[1] || '';}
 const busy = ref(false),
   loading = ref(true),
@@ -86,10 +88,12 @@ async function selectPhotos(event) {
 const editingId = ref(''), adminKey = ref(''), deleteTarget = ref(null), deleteDialog = ref(null), deleteError = ref('');
 const exportDialog = ref(null), exportError = ref('');
 const filterCategory = ref(''), filterFrom = ref(''), filterTo = ref('');
-const visibleEvents = computed(()=>filterEvents(events.value,{category:filterCategory.value,from:filterFrom.value,to:filterTo.value}));
+const visibleEvents = computed(()=>chronologicalEvents(filterEvents(events.value,{category:filterCategory.value,from:filterFrom.value,to:filterTo.value})));
+const focusedEvent=computed(()=>visibleEvents.value.find(event=>event.id === focusedEventId.value));
 const hasFilters = computed(()=>!!(filterCategory.value || filterFrom.value || filterTo.value));
 const coordinatePreview = ref(null), previewMapEl = ref(null);
 let previewMap;
+let mapObserver;
 let map,
   markers,
   draftMarker,
@@ -99,16 +103,7 @@ let map,
 const selected = computed(() =>
   projects.value.find((p) => p.id === selectedId.value),
 );
-const dateFormat = (value) =>
-  new Date(value).toLocaleString("zh-TW", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+const dateFormat=formatEventTime;
 const canSubmit = computed(
   () =>
     !busy.value && !photoBusy.value && !!adminKey.value.trim() && (editingId.value || !import.meta.env.VITE_TURNSTILE_SITE_KEY || token.value),
@@ -126,6 +121,7 @@ function paint() {
   markers.clearLayers();
   if(!showEvents.value)return;
   const groups=new Map();
+  const order=new Map(visibleEvents.value.map((event,index)=>[event.id,index+1]));
   for (const event of visibleEvents.value) {
     const lat=event.lat ?? selected.value?.lat,lng=event.lng ?? selected.value?.lng;
     if(typeof lat !== 'number' || typeof lng !== 'number')continue;
@@ -134,28 +130,53 @@ function paint() {
     groups.get(key).events.push(event);
   }
   for(const group of groups.values()){
-    const shared=group.events.length>1,inherited=group.events.every(event=>event.lat == null),size=shared ? 24 : 16;
+    const shared=group.events.length>1,inherited=group.events.every(event=>event.lat == null),focused=group.events.some(event=>event.id === focusedEventId.value),size=shared ? 32 : 28;
     const label=document.createElement('div');label.className='event-map-names';
     L.DomEvent.disableClickPropagation(label);L.DomEvent.disableScrollPropagation(label);
     for(const event of group.events){
-      const button=document.createElement('button');button.type='button';button.className='map-label-link';button.textContent=event.title;button.disabled=annotationDrawing.value;
-      button.setAttribute('aria-label',`閱讀事件：${event.title}`);button.title=event.lat == null ? '沿用地區座標' : `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`;
+      const button=document.createElement('button');button.type='button';button.className='map-label-link';button.textContent=`${order.get(event.id)}. ${event.title}`;button.disabled=annotationDrawing.value;
+      if(event.id === focusedEventId.value){button.classList.add('is-focused');button.setAttribute('aria-current','step');}
+      button.setAttribute('aria-label',`閱讀事件：${event.title}`);button.title=`${dateFormat(event.occurred_at)} · `+(event.lat == null ? '沿用地區座標' : `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`);
       button.addEventListener('click',click=>{click.stopPropagation();view(event);});label.append(button);
     }
     if(shared || inherited){const note=document.createElement('small');note.textContent=(inherited ? '沿用地區座標' : '共用位置')+(shared ? ` · ${group.events.length} 筆` : '');label.append(note);}
-    const marker=L.marker([group.lat,group.lng],{interactive:!annotationDrawing.value,icon:L.divIcon({className:'',html:`<span class="event-pin${inherited ? ' inherited' : ''}${shared ? ' shared' : ''}">${shared ? Math.min(group.events.length,9)+(group.events.length>9 ? '+' : '') : ''}</span>`,iconSize:[size,size],iconAnchor:[size/2,size/2]}),title:shared ? `事件群組：${group.events.length} 筆` : `事件：${group.events[0].title}`,zIndexOffset:1000})
+    const marker=L.marker([group.lat,group.lng],{interactive:!annotationDrawing.value,icon:L.divIcon({className:'',html:`<span class="event-pin numbered${inherited ? ' inherited' : ''}${shared ? ' shared' : ''}${focused ? ' focused' : ''}">${shared ? Math.min(group.events.length,9)+(group.events.length>9 ? '+' : '') : order.get(group.events[0].id)}</span>`,iconSize:[size,size],iconAnchor:[size/2,size/2]}),title:shared ? `事件群組：${group.events.length} 筆` : `事件：${group.events[0].title}`,zIndexOffset:focused ? 2000 : 1000})
       .addTo(markers).bindTooltip(label,{permanent:true,interactive:!annotationDrawing.value,direction:'top',offset:[0,-12],className:'map-name-label event-name-label',opacity:1});
     marker.on('click',()=>shared ? label.querySelector('button')?.focus() : view(group.events[0]));
   }
 }
 async function locateEvent(event) {
-  mobileTab.value='map';showEvents.value=true;await nextTick();map.invalidateSize();
-  map.flyTo([event.lat ?? selected.value.lat,event.lng ?? selected.value.lng],Math.max(map.getZoom(),15));
+  if(!selected.value || event.project_id !== selectedId.value || !visibleEvents.value.some(item=>item.id === event.id))return;
+  const instance=map,projectId=selectedId.value,point=[event.lat ?? selected.value.lat,event.lng ?? selected.value.lng];
+  focusedEventId.value=event.id;tourOverview.value=false;mobileTab.value='map';sidebarTab.value='events';showEvents.value=true;mapMode.value='browse';
+  await nextTick();
+  if(map !== instance || selectedId.value !== projectId || !instance?.getContainer().isConnected)return;
+  instance.invalidateSize();instance.stop();
+  instance.flyTo(point,15,{duration:.7,animate:!window.matchMedia('(prefers-reduced-motion: reduce)').matches});
+  scrollFocusedCard();
+}
+function scrollFocusedCard(){
+  const card=document.querySelector(`.timeline [data-event-id="${focusedEventId.value}"]`);
+  if(card?.getClientRects().length)card.scrollIntoView({block:'nearest',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
+function selectTourEvent(id){const event=visibleEvents.value.find(item=>item.id === id);if(event)locateEvent(event);}
+function readTourEvent(id){const event=visibleEvents.value.find(item=>item.id === id);if(event){const wide=readerWide.value;view(event);readerWide.value=wide;}}
+async function overviewEvents(){
+  if(!selected.value || !map || !visibleEvents.value.length)return;
+  const instance=map,projectId=selectedId.value;
+  const bounds=L.latLngBounds(visibleEvents.value.map(event=>[event.lat ?? selected.value.lat,event.lng ?? selected.value.lng]));
+  activeEvent.value=null;mobileTab.value='map';sidebarTab.value='events';showEvents.value=true;mapMode.value='browse';tourOverview.value=true;
+  await nextTick();if(map !== instance || selectedId.value !== projectId || !instance.getContainer().isConnected)return;
+  instance.invalidateSize();instance.stop();instance.fitBounds(bounds,{padding:[48,48],maxZoom:15,animate:false});
 }
 async function locateFeature(feature){
-  mobileTab.value='map';showAnnotations.value=true;await nextTick();map.invalidateSize();
-  map.fitBounds(L.geoJSON({type:'Feature',geometry:feature.geometry,properties:{}}).getBounds(),{padding:[40,40],maxZoom:16});
+  const instance=map,projectId=selectedId.value;
+  mobileTab.value='map';sidebarTab.value='annotations';showAnnotations.value=true;await nextTick();
+  if(map !== instance || selectedId.value !== projectId || !instance?.getContainer().isConnected)return;
+  instance.invalidateSize();instance.stop();
+  instance.fitBounds(L.geoJSON({type:'Feature',geometry:feature.geometry,properties:{}}).getBounds(),{padding:[40,40],maxZoom:16,animate:false});
 }
+function inspectFeature(){activeEvent.value=null;mapMode.value='browse';sidebarTab.value='annotations';mobileTab.value='sidebar';showAnnotations.value=true;}
 async function loadEvents(id) {
   const version = ++generation;
   const [data,annotations] = await Promise.all([all(`/projects/${id}/events`),all(`/projects/${id}/features`)]);
@@ -193,19 +214,21 @@ async function choose(p,navigate=true) {
   events.value = [];
   features.value=[];
   activeEvent.value = null;
+  focusedEventId.value='';tourOverview.value=false;
   filterCategory.value='';filterFrom.value='';filterTo.value='';sidebarTab.value='events';mobileTab.value='map';showEvents.value=true;showAnnotations.value=true;mapMode.value='browse';
   await nextTick();setupProjectMap();
   try {
     await loadEvents(p.id);
-    if(selectedId.value === p.id)fitProject();
+    await nextTick();if(selectedId.value === p.id){map?.invalidateSize();fitProject();}
   } catch (e) {
     error.value = e.message;
   }
 }
-function destroyProjectMap(){mapRef.value=null;map?.remove();map=null;markers=null;}
+function destroyProjectMap(){mapObserver?.disconnect();mapObserver=null;mapRef.value=null;map?.remove();map=null;markers=null;}
 function resetTransient(){
   dialog.value?.close();deleteDialog.value?.close();exportDialog.value?.close();
   cleanForm();deleteTarget.value=null;notice.value='';
+  focusedEventId.value='';tourOverview.value=false;
 }
 async function goOverview(navigate=true){
   resetTransient();
@@ -221,8 +244,8 @@ function syncRoute(){
   else {resetTransient();selectedId.value=id;events.value=[];features.value=[];activeEvent.value=null;generation++;nextTick(destroyProjectMap);}
 }
 function createProject(point){lat.value=point?.lat ?? '';lng.value=point?.lng ?? '';openForm('project');}
-function pickEvent(){mapMode.value='event';mobileTab.value='map';sidebarTab.value='events';}
-function annotationInteraction(active){annotationDrawing.value=active;if(active){mapMode.value='browse';mobileTab.value='map';showAnnotations.value=true;}}
+function pickEvent(){map?.stop();mapMode.value='event';mobileTab.value='map';sidebarTab.value='events';}
+function annotationInteraction(active){annotationDrawing.value=active;if(active){map?.stop();mapMode.value='browse';mobileTab.value='map';showAnnotations.value=true;}}
 function fitProject(){
   if(!map || !selected.value)return;
   const bounds=L.latLngBounds([[selected.value.lat,selected.value.lng]]);
@@ -410,6 +433,8 @@ async function save() {
   }
 }
 function view(event) {
+  if(event.project_id !== selectedId.value)return;
+  locateEvent(event);
   mediaError.value = '';
   detectedMedia.value=null;
   readerTab.value = linkedMedia(event.url).kind === 'none' ? 'photos' : 'link';
@@ -453,8 +478,9 @@ async function downloadData() {
     busy.value = false;
   }
 }
-watch([selectedId, visibleEvents, annotationDrawing, showEvents], paint, { deep: true });
-watch(mobileTab,async()=>{await nextTick();map?.invalidateSize();});
+watch([selectedId, visibleEvents, annotationDrawing, showEvents, focusedEventId], paint, { deep: true });
+watch(visibleEvents,items=>{if(focusedEventId.value && !items.some(event=>event.id === focusedEventId.value)){focusedEventId.value='';tourOverview.value=false;}});
+watch(mobileTab,async()=>{await nextTick();if(map?.getContainer().clientWidth)map.invalidateSize();if(mobileTab.value === 'sidebar' && sidebarTab.value === 'events')scrollFocusedCard();});
 function setupProjectMap(){
   if(map || !document.getElementById('map'))return;
   // CSS zoom timers can outlive maps removed during route changes.
@@ -478,6 +504,9 @@ function setupProjectMap(){
   markers = L.layerGroup().addTo(map);
   mapRef.value=map;
   map.on("click", (e) => pick(e.latlng));
+  const instance=map;
+  mapObserver=new ResizeObserver(entries=>{if(map === instance && instance.getContainer().isConnected && entries[0].contentRect.width>0 && entries[0].contentRect.height>0)instance.invalidateSize({pan:false});});
+  mapObserver.observe(map.getContainer());
   paint();
 }
 onMounted(async () => {
@@ -530,12 +559,12 @@ onUnmounted(destroyProjectMap);
           <div class="project-record-actions"><button @click="askExport">匯出專案</button><button @click="editRecord('project',selected)">編輯地區</button><button class="danger-text" @click="askDelete('projects',selected)">刪除地區</button></div>
         </div>
         <div v-show="sidebarTab === 'events'">
-          <div class="timeline-label"><h2>事件時間軸</h2><small>{{ hasFilters ? visibleEvents.length + '/' : '' }}{{ events.length }} 筆 · 臺灣時間</small></div>
+          <div class="timeline-label"><h2>事件時間軸</h2><small>{{ hasFilters ? visibleEvents.length + '/' : '' }}{{ events.length }} 筆 · 由舊到新</small></div>
           <div class="event-pick-container"><button class="map-pick-action" @click="pickEvent">{{ mapMode === 'event' ? '請在地圖上點選事件位置' : '地圖選點新增事件' }}</button></div>
           <details class="timeline-filters"><summary>篩選紀錄{{ hasFilters ? ' · 已套用' : '' }}</summary><label>事件類型<select v-model="filterCategory"><option value="">全部類型</option><option v-for="(label,key) in EVENT_TYPES" :key="key" :value="key">{{ label }}</option></select></label><div class="field-row"><label>起日<input v-model="filterFrom" type="date" /></label><label>迄日<input v-model="filterTo" type="date" /></label></div><p class="hint">篩選只影響事件，地圖標註會保留。</p><p v-if="filterFrom && filterTo && filterFrom > filterTo" class="error" role="alert">起日不可晚於迄日</p><button type="button" @click="filterCategory='';filterFrom='';filterTo=''">清除篩選</button></details>
           <ol class="timeline">
-            <li v-for="event in visibleEvents" :key="event.id">
-              <button class="event-card" :class="{chosen:activeEvent?.id === event.id}" @click="view(event)"><time>{{ dateFormat(event.occurred_at) }}</time><span class="event-type-badge">{{ EVENT_TYPES[event.category || 'other'] }}</span><h3>{{ event.title }}</h3><p v-if="event.description">{{ event.description }}</p><small class="event-coordinates">{{ (event.lat ?? selected.lat).toFixed(5) }}, {{ (event.lng ?? selected.lng).toFixed(5) }}{{ event.lat == null ? ' · 沿用地點' : '' }}</small><span class="source-link">查看紀錄{{ event.photos?.length ? `・${event.photos.length} 張照片` : '' }} →</span></button>
+            <li v-for="(event,index) in visibleEvents" :key="event.id" :data-event-id="event.id">
+              <button class="event-card" :class="{chosen:focusedEventId === event.id}" :aria-current="focusedEventId === event.id ? 'step' : undefined" @click="view(event)"><time>{{ dateFormat(event.occurred_at) }}</time><span class="event-type-badge">{{ EVENT_TYPES[event.category || 'other'] }}</span><h3><span class="timeline-order" aria-hidden="true">{{ index+1 }}</span>{{ event.title }}</h3><p v-if="event.description">{{ event.description }}</p><small class="event-coordinates">{{ (event.lat ?? selected.lat).toFixed(5) }}, {{ (event.lng ?? selected.lng).toFixed(5) }}{{ event.lat == null ? ' · 沿用地點' : '' }}</small><span class="source-link">查看紀錄{{ event.photos?.length ? `・${event.photos.length} 張照片` : '' }} →</span></button>
               <div class="record-actions"><button :aria-label="`定位事件：${event.title}`" @click="locateEvent(event)">定位</button><button :aria-label="`編輯事件：${event.title}`" @click="editRecord('event',event)">編輯</button><button class="danger-text" :aria-label="`刪除事件：${event.title}`" @click="askDelete('events',event)">刪除</button></div>
             </li>
           </ol>
@@ -543,15 +572,18 @@ onUnmounted(destroyProjectMap);
           <div v-if="!events.length" class="empty-small"><p>尚無事件</p><p class="hint">新增調查、雨量站或災害紀錄，並為每張圖卡設定位置。</p></div>
         </div>
         <div v-show="sidebarTab === 'annotations'">
-          <MapAnnotations v-if="mapRef" :key="selectedId" :map="mapRef" :project-id="selectedId" :features="features" :visible="showAnnotations" v-model:admin-key="adminKey" @drawing-change="annotationInteraction" @locate="locateFeature" @saved="items=>{if(items[0]?.project_id === selectedId) features.push(...items)}" @removed="id=>features=features.filter(f=>f.id !== id)" />
+          <MapAnnotations v-if="mapRef" :key="selectedId" :map="mapRef" :project-id="selectedId" :features="features" :visible="showAnnotations" v-model:admin-key="adminKey" @drawing-change="annotationInteraction" @inspect="inspectFeature" @locate="locateFeature" @saved="items=>{if(items[0]?.project_id === selectedId) features.push(...items)}" @removed="id=>features=features.filter(f=>f.id !== id)" />
         </div>
       </aside>
       <section class="map-panel project-map-panel" aria-label="專案地圖">
+        <div class="project-map-canvas">
         <div id="map"></div>
         <div class="map-label"><div class="map-mode-buttons" aria-label="地圖操作模式"><button :aria-pressed="mapMode === 'browse'" :disabled="annotationDrawing" @click="mapMode='browse'">瀏覽</button><button :aria-pressed="mapMode === 'event'" :disabled="annotationDrawing" @click="pickEvent">事件</button></div><span>{{ annotationDrawing ? '正在編輯地圖標註' : mapMode === 'event' ? '點擊地圖新增事件座標' : '此專案的事件與地圖標註' }}</span></div>
         <div id="map-drawing-controls"></div>
-        <div class="map-legend" aria-label="地圖圖例"><span><i class="legend-event"></i>事件</span><span><i class="legend-annotation"></i>標註</span></div>
+        <div class="map-legend" aria-label="地圖圖例"><span><i class="legend-event"></i>事件順序</span><span><i class="legend-annotation"></i>標註</span></div>
         <button class="map-reset" @click="fitProject">↖ 專案範圍</button>
+        </div>
+        <EventTour v-if="visibleEvents.length && !annotationDrawing && sidebarTab === 'events' && mapMode === 'browse'" :events="visibleEvents" :current-id="focusedEventId" :overview="tourOverview" @select="selectTourEvent" @overview="overviewEvents" @read="view" />
       </section>
     </main>
   </template>
@@ -709,6 +741,7 @@ onUnmounted(destroyProjectMap);
         </div>
         <div class="reader-actions"><button @click="readerWide=!readerWide" :aria-expanded="readerWide">{{ readerWide ? '縮回閱讀區' : '展開閱讀區' }}</button><button @click="activeEvent = null" aria-label="關閉事件網頁">×</button></div>
       </header>
+      <EventTour v-if="visibleEvents.length>1 && focusedEvent" reader :events="visibleEvents" :current-id="focusedEventId" :overview="tourOverview" @select="readTourEvent" @overview="overviewEvents" />
       <details class="reader-event-info" :open="!hasReaderLink && !activeEvent.photos?.length"><summary>事件資料 · {{ EVENT_TYPES[activeEvent.category || 'other'] }}</summary>
         <p v-if="activeEvent.description" class="reader-description">{{ activeEvent.description }}</p>
         <div class="reader-record-meta"><span v-if="activeEvent.lat != null">{{ activeEvent.lat.toFixed(5) }}, {{ activeEvent.lng.toFixed(5) }}</span><span v-else>沿用地點座標</span></div>

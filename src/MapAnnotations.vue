@@ -1,12 +1,13 @@
 <script setup>
-import {ref,computed,watch,onMounted,onBeforeUnmount} from 'vue';
+import {ref,computed,watch,nextTick,onMounted,onBeforeUnmount} from 'vue';
 import L from 'leaflet';
 import {api} from './api';
 import {readAnnotations,featureCollection,GEOMETRY_LABELS} from '../shared/annotations';
 import Challenge from './Challenge.vue';
 
 const props=defineProps({map:Object,projectId:String,features:Array,adminKey:String,visible:{type:Boolean,default:true}});
-const emit=defineEmits(['saved','removed','update:adminKey','drawing-change','locate']);
+const emit=defineEmits(['saved','removed','update:adminKey','drawing-change','locate','inspect']);
+const selectedFeatureId=ref('');
 const panel=ref(null),listOpen=ref(true),drawing=ref(''),vertices=ref([]),dialog=ref(null),actionDialog=ref(null);
 const pending=ref([]),failure=ref(''),busy=ref(false),token=ref(''),challengeKey=ref(0),action=ref(''),target=ref(null),modalOpen=ref(false);
 const enoughPoints=computed(()=>vertices.value.length >= (drawing.value === 'Polygon' ? 3 : 2));
@@ -15,17 +16,34 @@ let layer,draft,doubleClickEnabled=false;
 function syncInteraction(){emit('drawing-change',!!drawing.value || modalOpen.value);}
 function render() {
   layer?.remove();
-  layer=L.geoJSON(featureCollection(props.visible ? props.features || [] : []),{
+  const items=props.visible ? props.features || [] : [],collection=featureCollection(items);
+  collection.features.forEach((feature,index)=>feature.id=items[index].id);
+  layer=L.geoJSON(collection,{
     interactive:!drawing.value,
-    style:{color:'#547d99',weight:3,fillOpacity:.15,className:'annotation-layer'},
-    pointToLayer:(_,point)=>L.circleMarker(point,{radius:7,color:'#547d99',fillColor:'#fff',fillOpacity:1,weight:3,className:'annotation-layer',interactive:!drawing.value}),
+    bubblingMouseEvents:false,
+    style:feature=>({color:'#245fa8',weight:feature.id === selectedFeatureId.value ? 7 : 5,fillColor:'#367acb',fillOpacity:.24,className:`annotation-layer annotation-${feature.geometry.type}`}),
+    pointToLayer:(feature,point)=>L.marker(point,{interactive:!drawing.value,title:`標註：${feature.properties.name}`,icon:L.divIcon({className:'annotation-marker annotation-layer',html:`<span class="annotation-point-symbol${feature.id === selectedFeatureId.value ? ' selected' : ''}"></span>`,iconSize:[28,28],iconAnchor:[14,14]})}),
     onEachFeature(feature,item){
-      const label=document.createElement('span');label.textContent=feature.properties.name;
-      const popup=document.createElement('div'),heading=document.createElement('strong'),description=document.createElement('p');
-      heading.textContent=feature.properties.name;description.textContent=feature.properties.description;
-      popup.append(heading,description);item.bindTooltip(label).bindPopup(popup);
+      const label=document.createElement('button');label.type='button';label.className='map-label-link';label.textContent=`${GEOMETRY_LABELS[feature.geometry.type]} · ${feature.properties.name}`;label.disabled=!!drawing.value;
+      label.setAttribute('aria-label',`查看標註：${feature.properties.name}`);
+      L.DomEvent.disableClickPropagation(label);
+      const inspect=()=>{if(!drawing.value)inspectFeature(items.find(item=>item.id === feature.id));};
+      label.addEventListener('click',inspect);item.on('click',inspect);
+      const area=feature.geometry.type === 'Polygon';
+      item.bindTooltip(label,{permanent:true,interactive:!drawing.value,direction:area ? 'bottom' : 'top',offset:[0,area ? 16 : -16],className:'map-name-label annotation-name-label',opacity:1});
     },
   }).addTo(props.map);
+}
+async function inspectFeature(feature){
+  if(!feature)return;selectedFeatureId.value=feature.id;listOpen.value=true;emit('inspect',feature);render();await nextTick();
+  const card=panel.value?.querySelector(`[data-feature-id="${feature.id}"]`);card?.scrollIntoView({block:'nearest'});card?.focus({preventScroll:true});
+}
+function coordinateSummary(feature){
+  const {type,coordinates}=feature.geometry,format=([lng,lat])=>`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  if(type === 'Point')return format(coordinates);
+  if(type === 'LineString')return `${coordinates.length} 個節點\n起點 ${format(coordinates[0])}\n終點 ${format(coordinates.at(-1))}`;
+  const points=coordinates.flat(),bounds=L.latLngBounds(points.map(([lng,lat])=>[lat,lng]));
+  return `${points.length-coordinates.length} 個頂點${coordinates.length>1 ? ` · ${coordinates.length-1} 個內環` : ''}\n範圍 ${format([bounds.getWest(),bounds.getSouth()])}\n至 ${format([bounds.getEast(),bounds.getNorth()])}`;
 }
 function renderDraft(){
   draft?.remove();draft=L.layerGroup().addTo(props.map);
@@ -97,7 +115,7 @@ async function confirmAction(){
 }
 function closed(){modalOpen.value=false;pending.value=[];failure.value='';clearDrawing();}
 function escape(event){if(event.key === 'Escape' && drawing.value && !modalOpen.value)clearDrawing();}
-watch([()=>props.features,()=>props.visible],render,{deep:true});
+watch([()=>props.features,()=>props.visible],()=>{if(!props.features.some(feature=>feature.id === selectedFeatureId.value))selectedFeatureId.value='';render();},{deep:true});
 watch(()=>props.projectId,()=>{dialog.value?.close();actionDialog.value?.close();closed();listOpen.value=false;});
 onMounted(()=>{L.DomEvent.disableClickPropagation(panel.value);L.DomEvent.disableScrollPropagation(panel.value);props.map.on('click',mapClick);document.addEventListener('keydown',escape);render();});
 onBeforeUnmount(()=>{props.map.off('click',mapClick);document.removeEventListener('keydown',escape);layer?.remove();draft?.remove();if(doubleClickEnabled)props.map.doubleClickZoom.enable();emit('drawing-change',false);});
@@ -111,9 +129,14 @@ onBeforeUnmount(()=>{props.map.off('click',mapClick);document.removeEventListene
         <button v-for="(label,type) in GEOMETRY_LABELS" :key="type" :aria-pressed="drawing === type" @click="start(type)">{{ type === 'Point' ? '標點' : '畫' + label }}</button>
         <label class="button import-geometry">匯入<input aria-label="匯入 GeoJSON" type="file" accept=".geojson,.json,application/geo+json,application/json" @change="importFile" :disabled="!!drawing" /></label>
       </div>
-      <p v-if="!drawing" class="annotation-hint">此專案的點、線、面；匯入使用 WGS84 GeoJSON。</p>
+      <p v-if="!drawing" class="annotation-hint">點、線、面是地圖參考資料，不依事件時間排序。匯入使用 WGS84 GeoJSON。</p>
       <ul v-if="features.length" class="annotation-list">
-        <li v-for="feature in features" :key="feature.id"><button :aria-label="`定位標註：${feature.name}`" @click="locate(feature)"><span class="annotation-kind">{{ GEOMETRY_LABELS[feature.geometry.type] }}</span>{{ feature.name }}</button><button :aria-label="`刪除標註：${feature.name}`" @click="askAction('delete',feature)">×</button></li>
+        <li v-for="feature in features" :key="feature.id"><article :data-feature-id="feature.id" class="annotation-card" :class="{chosen:selectedFeatureId === feature.id}" :aria-label="`標註資訊：${feature.name}`" tabindex="-1">
+          <span class="annotation-kind"><i :class="'annotation-kind-'+feature.geometry.type" aria-hidden="true"></i>地圖標註 · {{ GEOMETRY_LABELS[feature.geometry.type] }}</span>
+          <h3>{{ feature.name }}</h3><p>{{ feature.description || '尚未填寫說明' }}</p>
+          <small class="annotation-coordinates">{{ coordinateSummary(feature) }}</small>
+          <div class="annotation-card-actions"><button :aria-label="`定位標註：${feature.name}`" @click="selectedFeatureId=feature.id;render();locate(feature)">地圖定位</button><button class="danger-text" :aria-label="`刪除標註：${feature.name}`" @click="askAction('delete',feature)">刪除</button></div>
+        </article></li>
       </ul>
       <p v-else class="annotation-hint">尚無標註，選擇工具開始繪製。</p>
       <button v-if="features.length" class="annotation-export" @click="askAction('export')">匯出 GeoJSON</button>
@@ -161,12 +184,24 @@ onBeforeUnmount(()=>{props.map.off('click',mapClick);document.removeEventListene
 .import-geometry input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
 .import-geometry:focus-within {outline:3px solid #dc9e3b;outline-offset:3px;}
 .annotation-list {list-style:none;padding:0;margin:12px 0 0;}
-.annotation-list li {display:flex;gap:4px;margin:4px 0;}
-.annotation-list button {padding:4px 8px;font-size:12px;}
-.annotation-list button:first-child {justify-content:flex-start;flex:1;min-width:0;overflow-wrap:anywhere;}
-.annotation-kind {color:#547d99;font-weight:600;flex-shrink:0;}
+.annotation-list li {margin:12px 0;}
+.annotation-card {padding:16px;border:1px solid #b9cfea;border-radius:8px;background:#f3f7fd;overflow-wrap:anywhere;}
+.annotation-card.chosen {border-color:#245fa8;box-shadow:0 0 0 2px #245fa822;}
+.annotation-card h3 {margin:8px 0;font-size:16px;line-height:24px;}
+.annotation-card p {font-size:14px;line-height:24px;color:var(--muted);white-space:pre-wrap;}
+.annotation-kind {display:flex;align-items:center;gap:8px;color:#245fa8;font-size:12px;font-weight:600;}
+.annotation-kind i {display:inline-block;width:12px;height:12px;background:#245fa8;border-radius:2px;}
+.annotation-kind .annotation-kind-LineString {height:4px;transform:rotate(-30deg);}
+.annotation-kind .annotation-kind-Polygon {background:#b2cceb;border:2px solid #245fa8;}
+.annotation-coordinates {display:block;white-space:pre-line;margin-top:12px;font-family:monospace;font-size:12px;line-height:20px;color:var(--muted);}
+.annotation-card-actions {display:flex;gap:8px;justify-content:space-between;margin-top:12px;}
+.annotation-card-actions button {font-size:12px;padding:4px 8px;min-height:44px;}
+.annotation-point-symbol {display:block;width:28px;height:28px;background:#245fa8;border:3px solid white;border-radius:4px;box-shadow:0 1px 6px #173b6b99;}
+.annotation-point-symbol.selected {outline:3px solid #245fa866;outline-offset:3px;}
+.leaflet-tooltip.annotation-name-label {border-color:#9cb9df;}
+.leaflet-tooltip.annotation-name-label .map-label-link {color:#245fa8;}
 .annotation-export {margin-top:8px;padding:4px 8px;font-size:12px;}
 .import-summary {max-height:200px;overflow:auto;font-size:14px;}
-.legend-annotation {background:#547d99;}
+.map-legend .legend-annotation {background:#245fa8;border-radius:2px;width:12px;height:12px;}
 @media(max-width:540px){.annotations-control{padding:16px;}.drawing-progress{left:12px;bottom:80px;padding:8px;}}
 </style>

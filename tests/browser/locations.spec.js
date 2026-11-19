@@ -9,7 +9,7 @@ test('regions stay projects; station observations are coordinate-bearing events 
     await page.goto('/');
     await expect(page.getByRole('heading',{name:'地區專案',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'＋ 新增雨量站',exact:true})).toHaveCount(0);
-    await page.getByRole('button',{name:/● 事件測試地區/}).click();
+    await page.locator(`[data-project-id="${project.id}"]`).click();
     await page.getByRole('button',{name:'＋ 新增事件',exact:true}).click();
     await expect(page.getByLabel('所屬地區專案')).toBeVisible();
     await expect(page.getByLabel('緯度 Latitude')).toHaveValue('24');
