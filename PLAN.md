@@ -15,6 +15,8 @@ Continue in `/Users/lanyanlin/Desktop/event-atlas`. Detailed active checklist: `
 
 Latest steering: event `123456` links to a CWA PDF with `#page=86` but the generic iframe was blank. PDF-specific preview and MIME detection are implemented and locally verified against the actual 100-page document, including page 86 on desktop/mobile. Detailed checklist: `.Codex/plans/2026-11-19-pdf-preview.md`. Final local checks: 36 unit tests, 15 browser tests, build and audit passed. A real Leaflet CSS zoom callback-after-remove error was reproduced and covered by a passing navigation regression; map zoom animation now uses supported non-CSS settings. Publish these final changes and run combined live verification before marking the two-level task complete.
 
+Latest user correction: show names directly at both map levels, and separate the current demo coordinates. Implemented clickable permanent project/event labels and grouped name lists for genuinely shared event positions. Only demo project `e1fd1808-1ca1-4f96-be54-311e70d69ec2` was relocated (center 24.204,121.005), together with its 3 distinct event positions and 3 geometries; original project/events were checked unchanged. Local checks now pass 36 unit and 16 browser tests. PDF release `4993a28` / workflow `44532498819` succeeded; original event `123456` now has a working production PDF byte-range endpoint and MIME detection. Finish name-label publication and combined desktop/mobile live verification, then mark all active checklists complete.
+
 ## Previous completed work — 2026-11-19
 
 Continue in `/Users/lanyanlin/Desktop/event-atlas`. The Codex chat belongs to the GeoPort workspace, but this is an independent application. Do not switch this work to `/Users/lanyanlin/Desktop/geoport`.

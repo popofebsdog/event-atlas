@@ -8,9 +8,12 @@ let map,markers;
 function paint(){
   if(!markers)return;markers.clearLayers();
   for(const project of props.projects){
-    const label=document.createElement('span');label.textContent=project.name;
+    const label=document.createElement('button');label.type='button';label.className='map-label-link';label.textContent=project.name;
+    label.setAttribute('aria-label',`開啟專案：${project.name}`);
+    L.DomEvent.disableClickPropagation(label);
+    label.addEventListener('click',event=>{event.stopPropagation();emit('open',project);});
     L.marker([project.lat,project.lng],{title:project.name,icon:L.divIcon({className:'',html:'<span class="map-pin"></span>',iconSize:[24,24],iconAnchor:[12,12]})})
-      .addTo(markers).bindTooltip(label).on('click',()=>emit('open',project));
+      .addTo(markers).bindTooltip(label,{permanent:true,interactive:true,direction:'top',offset:[0,-12],className:'map-name-label',opacity:1}).on('click',()=>emit('open',project));
   }
 }
 function showAll(){

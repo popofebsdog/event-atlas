@@ -125,13 +125,27 @@ function paint() {
   if (!markers) return;
   markers.clearLayers();
   if(!showEvents.value)return;
+  const groups=new Map();
   for (const event of visibleEvents.value) {
     const lat=event.lat ?? selected.value?.lat,lng=event.lng ?? selected.value?.lng;
     if(typeof lat !== 'number' || typeof lng !== 'number')continue;
-    const inherited=event.lat == null;
-    const label=document.createElement('span'); label.textContent=event.title + (inherited ? ' · 沿用地區座標' : '');
-    L.marker([lat,lng],{interactive:!annotationDrawing.value,icon:L.divIcon({className:'',html:`<span class="event-pin${inherited ? ' inherited' : ''}"></span>`,iconSize:[16,16],iconAnchor:[8,8]}),title:`事件：${event.title}`,zIndexOffset:1000})
-      .addTo(markers).bindTooltip(label).on('click',()=>view(event));
+    const key=`${lat},${lng}`;
+    if(!groups.has(key))groups.set(key,{lat,lng,events:[]});
+    groups.get(key).events.push(event);
+  }
+  for(const group of groups.values()){
+    const shared=group.events.length>1,inherited=group.events.every(event=>event.lat == null),size=shared ? 24 : 16;
+    const label=document.createElement('div');label.className='event-map-names';
+    L.DomEvent.disableClickPropagation(label);L.DomEvent.disableScrollPropagation(label);
+    for(const event of group.events){
+      const button=document.createElement('button');button.type='button';button.className='map-label-link';button.textContent=event.title;button.disabled=annotationDrawing.value;
+      button.setAttribute('aria-label',`閱讀事件：${event.title}`);button.title=event.lat == null ? '沿用地區座標' : `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`;
+      button.addEventListener('click',click=>{click.stopPropagation();view(event);});label.append(button);
+    }
+    if(shared || inherited){const note=document.createElement('small');note.textContent=(inherited ? '沿用地區座標' : '共用位置')+(shared ? ` · ${group.events.length} 筆` : '');label.append(note);}
+    const marker=L.marker([group.lat,group.lng],{interactive:!annotationDrawing.value,icon:L.divIcon({className:'',html:`<span class="event-pin${inherited ? ' inherited' : ''}${shared ? ' shared' : ''}">${shared ? Math.min(group.events.length,9)+(group.events.length>9 ? '+' : '') : ''}</span>`,iconSize:[size,size],iconAnchor:[size/2,size/2]}),title:shared ? `事件群組：${group.events.length} 筆` : `事件：${group.events[0].title}`,zIndexOffset:1000})
+      .addTo(markers).bindTooltip(label,{permanent:true,interactive:!annotationDrawing.value,direction:'top',offset:[0,-12],className:'map-name-label event-name-label',opacity:1});
+    marker.on('click',()=>shared ? label.querySelector('button')?.focus() : view(group.events[0]));
   }
 }
 async function locateEvent(event) {

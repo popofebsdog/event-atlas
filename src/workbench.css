@@ -33,6 +33,12 @@ button:active:not(:disabled),.button:active { transform:translateY(1px); }
 .legend-event { background:var(--event); }
 .event-pin { display:block; width:16px; height:16px; background:var(--event); border:3px solid white; border-radius:50%; box-shadow:0 1px 4px #203a4250; }
 .event-pin.inherited {border-style:dashed;}
+.event-pin.shared {width:24px;height:24px;color:white;font-size:12px;line-height:18px;text-align:center;font-weight:600;}
+.leaflet-tooltip.map-name-label {width:max-content;white-space:normal;max-width:224px;padding:4px 8px;border-radius:6px;border-color:var(--line);color:var(--ink);font-family:"Noto Sans TC",sans-serif;box-shadow:0 1px 4px #203a4220;}
+.leaflet-tooltip.map-name-label .map-label-link {display:block;width:100%;padding:4px 0;border:0;border-radius:0;background:transparent;text-align:left;font-size:12px;line-height:16px;color:var(--ink);}
+.leaflet-tooltip.map-name-label .map-label-link:hover {color:var(--accent);text-decoration:underline;}
+.event-map-names {max-height:160px;overflow:auto;}
+.event-map-names small {display:block;font-size:12px;line-height:16px;color:var(--muted);padding:4px 0;}
 .map-reset { bottom:24px; right:16px; font-size:12px; }
 .timeline-panel { background:white; }
 .timeline-head { padding:24px; background:#f9fbfc; }
