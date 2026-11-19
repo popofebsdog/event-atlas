@@ -167,7 +167,8 @@ async function overviewEvents(){
   const bounds=L.latLngBounds(visibleEvents.value.map(event=>[event.lat ?? selected.value.lat,event.lng ?? selected.value.lng]));
   activeEvent.value=null;mobileTab.value='map';sidebarTab.value='events';showEvents.value=true;mapMode.value='browse';tourOverview.value=true;
   await nextTick();if(map !== instance || selectedId.value !== projectId || !instance.getContainer().isConnected)return;
-  instance.invalidateSize();instance.stop();instance.fitBounds(bounds,{padding:[48,48],maxZoom:15,animate:false});
+  instance.invalidateSize();instance.stop();
+  instance.fitBounds(bounds,{padding:[Math.min(112,instance.getSize().x/3),48],maxZoom:15,animate:false});
 }
 async function locateFeature(feature){
   const instance=map,projectId=selectedId.value;
