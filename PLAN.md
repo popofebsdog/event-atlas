@@ -1,21 +1,25 @@
 # Implementation record
 
-## Current work — two map levels, 2026-11-19
+## Completed update — 2026-11-19
 
-User clarification: the overview map contains region projects; entering a project opens its own map. Rainfall stations are coordinate-bearing event cards within a region project, not a separate project type. Project maps accept independent point, line and polygon annotations. Create sample events as part of verification.
+This is the independent application at `/Users/lanyanlin/Desktop/event-atlas`. The Codex chat is attached to the GeoPort workspace, but the application changes belong here; GeoPort was not changed.
 
-Continue in `/Users/lanyanlin/Desktop/event-atlas`. Detailed active checklist: `.Codex/plans/2026-11-19-project-map-annotations.md`. WebGIS expert consulted for both information architecture and implementation review. Current documentation: `docs/webgis-usage-roadmap.md`.
+- [x] Separate region overview (`#/`) and project workspace (`#/projects/:id`), with shareable routes, history, return navigation and mobile map/timeline/annotation views.
+- [x] Region projects stay in the overview. Rainfall stations are coordinate-bearing event cards inside a project.
+- [x] Project maps contain only their own events and independent point/line/polygon annotations, with drawing, GeoJSON import/export, layer controls and administrator-protected writes/exports.
+- [x] Both map levels show clickable names. Events at exactly the same coordinates share a count marker and a list of names. Inherited positions are identified without inventing coordinates.
+- [x] Website/photo tabs, expanded reading, visible text-only events, original-site fallbacks, actual MIME inspection and a dedicated PDF reader retaining `#page=`.
+- [x] Preserve original project `8c7d8014-3228-4795-9017-4c9d46eac0a1`, its four events and original photo. Compare production records before/after to confirm no changes.
+- [x] Create demo project `e1fd1808-1ca1-4f96-be54-311e70d69ec2` with three events and point/line/polygon annotations. Relocate its center to 24.204,121.005 and events to three distinct positions; only demo rows were updated.
+- [x] Fix asynchronous saves/uploads and map cleanup during routing, resizing and zooming, with regression coverage.
+- [x] Pass 36 unit tests, 17 browser tests, integration scenarios, build and dependency audit (zero reported vulnerabilities).
+- [x] Publish code `0e5e320`; deployment workflow `44535964672` succeeded. Live desktop 1440×1000 and mobile 390×844 verification passed: names visible/clickable, demo names do not overlap, three event positions and three geometries appear, original event `123456` renders PDF page 86, no horizontal overflow or runtime errors.
 
-- [x] Restore region projects in the overview; introduce hash-routed overview/project workspaces, project-scoped maps and responsive sidebar/map views.
-- [x] Add validated project geometry storage/API and point/line/polygon drawing, GeoJSON import/export, layer controls and coordinate-bearing station events.
-- [x] Address expert findings: inherited event coordinates, overview coordinate previews, mobile location display, route draft cleanup, fixed project ownership, stale save responses and overview resize.
-- [x] Complete expert/code/visual review; 32 unit tests, 11 browser tests, build and npm audit passed. Demo created locally (3 events and 3 geometries); production data backed up before the additive schema update.
-- [x] Publish two-level workspaces (commit `edeb7c4`, workflow `44528416434`), add a clearly labeled production demo (3 events, point/line/polygon), and verify original data is unchanged (2 projects / 7 events total after adding the demo).
-- [ ] Publish the final text-only reader adjustment and verify live desktop/mobile navigation and reading.
+Public site: https://popofebsdog.github.io/event-atlas/?v=0e5e320
 
-Latest steering: event `123456` links to a CWA PDF with `#page=86` but the generic iframe was blank. PDF-specific preview and MIME detection are implemented and locally verified against the actual 100-page document, including page 86 on desktop/mobile. Detailed checklist: `.Codex/plans/2026-11-19-pdf-preview.md`. Final local checks: 36 unit tests, 15 browser tests, build and audit passed. A real Leaflet CSS zoom callback-after-remove error was reproduced and covered by a passing navigation regression; map zoom animation now uses supported non-CSS settings. Publish these final changes and run combined live verification before marking the two-level task complete.
+Demo: https://popofebsdog.github.io/event-atlas/?v=0e5e320#/projects/e1fd1808-1ca1-4f96-be54-311e70d69ec2
 
-Latest user correction: show names directly at both map levels, and separate the current demo coordinates. Implemented clickable permanent project/event labels and grouped name lists for genuinely shared event positions. Only demo project `e1fd1808-1ca1-4f96-be54-311e70d69ec2` was relocated (center 24.204,121.005), together with its 3 distinct event positions and 3 geometries; original project/events were checked unchanged. Local checks now pass 36 unit and 16 browser tests. PDF release `4993a28` / workflow `44532498819` succeeded; original event `123456` now has a working production PDF byte-range endpoint and MIME detection. Finish name-label publication and combined desktop/mobile live verification, then mark all active checklists complete.
+Detailed checklists: `.Codex/plans/2026-11-19-project-map-annotations.md` and `.Codex/plans/2026-11-19-pdf-preview.md`. Current usage and boundaries: `docs/webgis-usage-roadmap.md`. Production backups and demo seed/relocation files are outside the repository under `/tmp`; credentials and `.env` files remain ignored.
 
 ## Previous completed work — 2026-11-19
 
