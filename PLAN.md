@@ -12,7 +12,7 @@ Continue in `/Users/lanyanlin/Desktop/event-atlas`. The Codex chat belongs to th
 - [x] Obtain WebGIS expert feedback and record future recommendations in `docs/webgis-usage-roadmap.md`.
 - [x] Back up production data before additive migrations.
 - [x] Complete final verification using the actual event and the current test suite (26 unit checks, 5 browser tests and 5 integration scenarios; actual event desktop/mobile reading checked).
-- [ ] Publish through the existing deployment workflow and verify the public site/API.
+- [x] Publish through the existing deployment workflow and verify the public site/API. Code commit `c2333ad`; GitHub Actions run `44523058010` passed. Production retained its 1 project, 4 events and 1 photo; original creation times and photo references were preserved. The public `123546` reader has separate website/photo panes, over 700px of website height at 1440×1000 and a working full-width control.
 
 - [x] Independent project beside GeoPort; no existing application changes.
 - [x] Frontend: map selection, manual WGS84/TWD97 coordinates, project list, Taiwan-time event form and timeline.
