@@ -30,6 +30,8 @@
 .reader-audit dd { margin:0; }
 .reader-web-pane { display:flex; flex-direction:column; flex:1; min-height:0; gap:8px; overflow:auto; }
 .reader-photo-pane { flex:1; min-height:0; overflow:auto; align-content:start; }
+.reader-text-only .reader-event-info {max-height:none;flex:1;}
+.reader-text-only .reader-photo-pane {display:none;}
 .coordinate-preview { margin-top: 16px; }
 .coordinate-map { height: 220px; border: 1px solid var(--line); border-radius: 6px; }
 .project-name-field { margin-top: 16px; }

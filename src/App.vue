@@ -674,7 +674,7 @@ onUnmounted(destroyProjectMap);
     @close="activeEvent = null"
     aria-label="事件網頁閱讀區"
   >
-    <section class="reader">
+    <section class="reader" :class="{'reader-text-only':!hasReaderLink && !activeEvent.photos?.length}">
       <header>
         <div>
           <time>{{ dateFormat(activeEvent.occurred_at) }}</time>
@@ -682,7 +682,7 @@ onUnmounted(destroyProjectMap);
         </div>
         <div class="reader-actions"><button @click="readerWide=!readerWide" :aria-expanded="readerWide">{{ readerWide ? '縮回閱讀區' : '展開閱讀區' }}</button><button @click="activeEvent = null" aria-label="關閉事件網頁">×</button></div>
       </header>
-      <details class="reader-event-info"><summary>事件資料 · {{ EVENT_TYPES[activeEvent.category || 'other'] }}</summary>
+      <details class="reader-event-info" :open="!hasReaderLink && !activeEvent.photos?.length"><summary>事件資料 · {{ EVENT_TYPES[activeEvent.category || 'other'] }}</summary>
         <p v-if="activeEvent.description" class="reader-description">{{ activeEvent.description }}</p>
         <div class="reader-record-meta"><span v-if="activeEvent.lat != null">{{ activeEvent.lat.toFixed(5) }}, {{ activeEvent.lng.toFixed(5) }}</span><span v-else>沿用地點座標</span></div>
         <p v-if="activeEvent.source" class="reader-source">資料來源：{{ activeEvent.source }}</p>

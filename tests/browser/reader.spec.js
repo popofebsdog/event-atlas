@@ -1,5 +1,18 @@
 import {test,expect} from '@playwright/test';
 const headers={Origin:'http://localhost:5174',Authorization:'Bearer local-development-only-not-for-production'};
+test('text-only coordinate events reveal their record details without opening an empty media reader',async({page,request})=>{
+  const project=await request.post('http://localhost:8787/api/projects',{headers,data:{name:'文字事件閱讀測試',lat:24,lng:121}}).then(r=>r.json());
+  try{
+    await request.post(`http://localhost:8787/api/projects/${project.id}/events`,{headers,data:{title:'只有文字與座標',description:'這是需要直接閱讀的現地調查內容',source:'測試紀錄來源',lat:24.1,lng:121.1,occurred_at:'2026-11-19T01:00:00Z'}});
+    await page.route('**/tile.openstreetmap.org/**',r=>r.abort());await page.route('**/services.arcgisonline.com/**',r=>r.abort());
+    await page.goto(`/#/projects/${project.id}`);await page.getByRole('button',{name:/只有文字與座標.*查看紀錄/}).click();
+    const reader=page.getByRole('dialog',{name:'事件網頁閱讀區'});
+    await expect(reader.getByText('這是需要直接閱讀的現地調查內容',{exact:true})).toBeVisible();
+    await expect(reader.getByText('資料來源：測試紀錄來源',{exact:true})).toBeVisible();
+    await expect(reader.getByText('24.10000, 121.10000',{exact:true})).toBeVisible();
+    await expect(reader.locator('iframe')).toHaveCount(0);
+  }finally{await fetch(`http://localhost:8787/api/projects/${project.id}`,{method:'DELETE',headers});}
+});
 test('photo and website use separate panes; web keeps height and can expand without reloading',async({page,request})=>{
   const p=await request.post('http://localhost:8787/api/projects',{headers,data:{name:'閱讀區版面測試',lat:24,lng:121}});
   const project=await p.json();

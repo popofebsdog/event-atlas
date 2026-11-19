@@ -10,7 +10,8 @@ Continue in `/Users/lanyanlin/Desktop/event-atlas`. Detailed active checklist: `
 - [x] Add validated project geometry storage/API and point/line/polygon drawing, GeoJSON import/export, layer controls and coordinate-bearing station events.
 - [x] Address expert findings: inherited event coordinates, overview coordinate previews, mobile location display, route draft cleanup, fixed project ownership, stale save responses and overview resize.
 - [x] Complete expert/code/visual review; 32 unit tests, 11 browser tests, build and npm audit passed. Demo created locally (3 events and 3 geometries); production data backed up before the additive schema update.
-- [ ] Publish, add clearly labeled production demo data, verify original data and live routes/maps.
+- [x] Publish two-level workspaces (commit `edeb7c4`, workflow `44528416434`), add a clearly labeled production demo (3 events, point/line/polygon), and verify original data is unchanged (2 projects / 7 events total after adding the demo).
+- [ ] Publish the final text-only reader adjustment and verify live desktop/mobile navigation and reading.
 
 ## Previous completed work — 2026-11-19
 
