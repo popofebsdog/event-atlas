@@ -1,6 +1,6 @@
 # Implementation record
 
-## Active update — chronological browsing and annotation cards
+## Completed update — chronological browsing and annotation cards
 
 User wants a time-ordered map story rather than loose collection. Confirmed scope: manual previous/next plus an event overview, with chronological numbering and synchronized map/card focus; no autoplay. Also requested information cards for annotations and visibly different map symbols because the old hollow annotation point was too faint. Work in `/Users/lanyanlin/Desktop/event-atlas`; active checklist is `.Codex/plans/2026-11-19-chronological-map-tour.md`. Existing data and backend schema remain unchanged.
 
@@ -8,7 +8,7 @@ User wants a time-ordered map story rather than loose collection. Confirmed scop
 - [x] Add independent blue annotation information cards, filled square points, stronger line/polygon styling and map-to-card selection.
 - [x] Prevent annotation clicks from also creating events; retain blank-map event entry and drawing across existing features. WebGIS expert verified these interactions in Chromium with no runtime errors.
 - [x] Verify 39 unit checks, 21 browser scenarios (including integration coverage), production build, desktop/mobile screenshots and clean diff checks.
-- [ ] Publish and verify actual production demo; compare public records with `/tmp/event-atlas-before-tour.json`.
+- [x] Publish code `c86e33f` (workflow `44552803755`) and verify actual desktop/mobile tour and annotation cards. Match all production project/event/feature/photo references against `/tmp/event-atlas-before-tour.json`; no records changed and no runtime errors. Mobile overview keeps long names within the map bounds; dense labels can still overlap.
 
 ## Completed update — 2026-11-19
 
