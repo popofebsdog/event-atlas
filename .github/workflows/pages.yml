@@ -12,7 +12,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,7 +27,7 @@ jobs:
       - run: npm test
       - name: Prepare local test configuration
         run: node -e "require('fs').writeFileSync('.dev.vars', 'LOCAL_DEV=true\nADMIN_TOKEN=local-development-only-not-for-production\n')"
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:e2e
       - name: Verify public deployment settings
         run: node -e "if (!process.env.VITE_API_URL?.startsWith('https://') || !process.env.VITE_TURNSTILE_SITE_KEY) throw new Error('Set repository variables VITE_API_URL and VITE_TURNSTILE_SITE_KEY before deployment')"
