@@ -8,16 +8,18 @@ import {
   watch,
   nextTick,
   shallowRef,
+  defineAsyncComponent,
 } from "vue";
 import L from "leaflet";
 import proj4 from "proj4";
-import { api, all, photoUrl } from "./api";
-import { linkedMedia, preparePhoto } from './media';
+import { api, all, photoUrl, pdfUrl } from "./api";
+import { linkedMedia, preparePhoto, pdfPage } from './media';
 import {EVENT_TYPES} from '../shared/records';
 import {filterEvents} from './timeline';
 import Challenge from "./Challenge.vue";
 import MapAnnotations from './MapAnnotations.vue';
 import RegionOverview from './RegionOverview.vue';
+const PdfPreview=defineAsyncComponent(()=>import('./PdfPreview.vue'));
 
 const projects = ref([]),
   events = ref([]),
@@ -58,8 +60,12 @@ function reloadPreview() {
   previewVersion.value++;
 }
 const photos = ref([]), photoBusy = ref(false), mediaError = ref('');
+const detectedMedia=ref(null);
 let formGeneration=0;
-const activeMedia = computed(() => linkedMedia(activeEvent.value?.url));
+const activeMedia = computed(() => {
+  const initial=linkedMedia(activeEvent.value?.url);
+  return detectedMedia.value ? {...initial,...detectedMedia.value,page:pdfPage(activeEvent.value?.url)} : initial;
+});
 const photoSource = photo => photo.startsWith('data:') ? photo : photoUrl(photo);
 async function selectPhotos(event) {
   const generation=formGeneration;
@@ -391,10 +397,16 @@ async function save() {
 }
 function view(event) {
   mediaError.value = '';
+  detectedMedia.value=null;
   readerTab.value = linkedMedia(event.url).kind === 'none' ? 'photos' : 'link';
   readerWide.value = false;
   embedLoading.value = ['web','drive','image'].includes(linkedMedia(event.url).kind);
   activeEvent.value = event;
+  if(linkedMedia(event.url).kind === 'web'){
+    api(`/events/${event.id}/media`).then(result=>{
+      if(activeEvent.value?.id === event.id && activeEvent.value?.url === event.url && result.verified){detectedMedia.value=result;if(result.kind === 'pdf' || result.kind === 'external')embedLoading.value=false;}
+    }).catch(()=>{});
+  }
 }
 watch(activeEvent, async (value) => {
   if (value) {
@@ -695,7 +707,8 @@ onUnmounted(destroyProjectMap);
         <img v-for="(photo,index) in activeEvent.photos" :key="photo" :src="photoUrl(photo)" :alt="`${activeEvent.title}・照片 ${index + 1}`" loading="lazy" @error="mediaError = '照片載入失敗，請稍後重試。'" />
       </div>
       <div v-else class="reader-web-pane">
-      <div v-if="activeMedia.kind === 'external'" class="external-fallback"><h3>此網站限制內嵌顯示</h3><p>原網站只允許從自己的頁面顯示內容，請在新分頁閱讀完整資料。</p><a class="button primary" :href="activeMedia.src" target="_blank" rel="noopener noreferrer">開啟原網站</a></div>
+      <div v-if="activeMedia.kind === 'external'" class="external-fallback"><h3>{{ activeMedia.reason === 'file' ? '此檔案請使用原始連結開啟' : '此網站限制內嵌顯示' }}</h3><p>{{ activeMedia.reason === 'file' ? '這個檔案格式尚不支援直接預覽，可在原網站或合適的閱讀工具開啟。' : '原網站只允許從自己的頁面顯示內容，請在新分頁閱讀完整資料。' }}</p><a class="button primary" :href="activeMedia.src" target="_blank" rel="noopener noreferrer">開啟原網站</a></div>
+      <PdfPreview v-if="activeMedia.kind === 'pdf'" :key="activeEvent.id" :url="pdfUrl(activeEvent.id)" :source="activeMedia.src" :initial-page="activeMedia.page" />
       <div v-if="activeMedia.kind === 'drive'" class="drive-help">
         <p class="hint">若顯示「需要存取權」，請將原檔設為「知道連結的任何人／檢視者」，再重新載入。也可直接上傳照片。</p>
         <button type="button" @click="reloadPreview">重新載入預覽</button>

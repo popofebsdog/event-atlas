@@ -12,7 +12,11 @@ export function linkedMedia(value) {
       return {kind: 'drive', src: preview.href};
     }
   }
+  if (/\.pdf$/i.test(url.pathname)) return {kind:'pdf',src:url.href,page:pdfPage(url.href)};
   return {kind: /\.(?:png|jpe?g|webp|gif|avif)$/i.test(url.pathname) ? 'image' : 'web', src: url.href};
+}
+export function pdfPage(value){
+  try {const page=Number(new URLSearchParams(new URL(value).hash.slice(1)).get('page'));return Number.isSafeInteger(page) && page>0 ? page : 1;}catch{return 1;}
 }
 export async function preparePhoto(file) {
   if (!['image/jpeg','image/png','image/webp'].includes(file.type)) throw new Error('請選擇 JPEG、PNG 或 WebP 照片');

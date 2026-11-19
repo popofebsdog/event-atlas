@@ -3,6 +3,7 @@ const base = (import.meta.env.VITE_API_URL || "http://localhost:8787").replace(
   "",
 );
 export const photoUrl = id => `${base}/api/photos/${encodeURIComponent(id)}`;
+export const pdfUrl = id => `${base}/api/events/${encodeURIComponent(id)}/pdf`;
 export async function api(path, options = {}) {
   const response = await fetch(`${base}/api${path}`, {
     ...options,

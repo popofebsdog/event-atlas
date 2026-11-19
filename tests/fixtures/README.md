@@ -1,0 +1,1 @@
+`basicapi.pdf` is the small PDF.js test fixture from https://github.com/mozilla/pdf.js/blob/master/test/pdfs/basicapi.pdf, distributed by the Mozilla PDF.js project under Apache-2.0. It is used for offline browser preview regression tests.

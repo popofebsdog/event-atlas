@@ -1,6 +1,7 @@
 import { InputError, validateProject, validateEvent } from "./validation.js";
 import {validatePhotos, photoStatements, eventSelect, eventRow} from './photos.js';
 import {readAnnotations} from '../shared/annotations.js';
+import {inspectMedia,pdfResponse,MediaError} from './remote-media.js';
 
 export default {
   async fetch(request, env) {
@@ -24,7 +25,7 @@ export default {
         headers: {
           ...headers,
           "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type,Authorization",
+          "Access-Control-Allow-Headers": "Content-Type,Authorization,Range",
         },
       });
     const url = new URL(request.url);
@@ -37,6 +38,13 @@ export default {
       }
       if (request.method === "GET" && path === "/api/health")
         return json({ ok: true });
+      const documentMatch=path.match(/^\/api\/events\/([a-zA-Z0-9-]{1,64})\/(media|pdf)$/);
+      if(request.method === 'GET' && documentMatch){
+        const event=await env.DB.prepare('SELECT url FROM events WHERE id=?').bind(documentMatch[1]).first();
+        if(!event)return json({error:'事件不存在'},404);
+        if(documentMatch[2] === 'pdf')return await pdfResponse(event.url,request,headers);
+        try{return json(await inspectMedia(event.url,url.hostname));}catch(error){if(error instanceof MediaError)throw error;return json({kind:'web',verified:false});}
+      }
       const photoMatch = path.match(/^\/api\/photos\/([a-zA-Z0-9-]{1,64})$/);
       if (request.method === 'GET' && photoMatch) {
         const photo = await env.DB.prepare('SELECT mime,data FROM photos WHERE id=?').bind(photoMatch[1]).first();
@@ -191,6 +199,7 @@ export default {
       }
       return json({ error: "找不到此 API" }, 404);
     } catch (error) {
+      if(error instanceof MediaError)return json({error:error.message},error.status);
       if (error instanceof InputError)
         return json({ error: error.message }, 400);
       console.error("API failure:", error.name);

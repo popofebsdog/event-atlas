@@ -13,6 +13,8 @@ Continue in `/Users/lanyanlin/Desktop/event-atlas`. Detailed active checklist: `
 - [x] Publish two-level workspaces (commit `edeb7c4`, workflow `44528416434`), add a clearly labeled production demo (3 events, point/line/polygon), and verify original data is unchanged (2 projects / 7 events total after adding the demo).
 - [ ] Publish the final text-only reader adjustment and verify live desktop/mobile navigation and reading.
 
+Latest steering: event `123456` links to a CWA PDF with `#page=86` but the generic iframe was blank. PDF-specific preview and MIME detection are implemented and locally verified against the actual 100-page document, including page 86 on desktop/mobile. Detailed checklist: `.Codex/plans/2026-11-19-pdf-preview.md`. Final local checks: 36 unit tests, 15 browser tests, build and audit passed. A real Leaflet CSS zoom callback-after-remove error was reproduced and covered by a passing navigation regression; map zoom animation now uses supported non-CSS settings. Publish these final changes and run combined live verification before marking the two-level task complete.
+
 ## Previous completed work — 2026-11-19
 
 Continue in `/Users/lanyanlin/Desktop/event-atlas`. The Codex chat belongs to the GeoPort workspace, but this is an independent application. Do not switch this work to `/Users/lanyanlin/Desktop/geoport`.

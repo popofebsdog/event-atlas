@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/pdf-assets.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
@@ -17,6 +18,7 @@
   },
   "dependencies": {
     "leaflet": "^1.9.4",
+    "pdfjs-dist": "^6.5.438",
     "proj4": "^2.19.10",
     "vue": "^3.5.0"
   },
