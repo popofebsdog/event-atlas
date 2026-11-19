@@ -322,7 +322,7 @@ async function locateCoordinates() {
     coordinatePreview.value = point;
     await nextTick();
     previewMap?.remove();
-    previewMap = L.map(previewMapEl.value, { scrollWheelZoom: false }).setView([point.lat, point.lng], 15);
+    previewMap = L.map(previewMapEl.value, { scrollWheelZoom: false, zoomAnimation:false }).setView([point.lat, point.lng], 15);
     L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
       attribution: 'Source: <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer">Esri</a>, Vantor, Earthstar Geographics, and the GIS User Community'
@@ -431,7 +431,8 @@ watch([selectedId, visibleEvents, annotationDrawing, showEvents], paint, { deep:
 watch(mobileTab,async()=>{await nextTick();map?.invalidateSize();});
 function setupProjectMap(){
   if(map || !document.getElementById('map'))return;
-  map = L.map("map", { zoomControl: false }).setView([23.85, 121], 7);
+  // CSS zoom timers can outlive maps removed during route changes.
+  map = L.map("map", { zoomControl: false, zoomAnimation:false }).setView([23.85, 121], 7);
   const basicMap = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

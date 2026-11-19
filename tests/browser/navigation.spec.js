@@ -1,5 +1,19 @@
 import {test,expect} from '@playwright/test';
 const headers={Origin:'http://localhost:5174',Authorization:'Bearer local-development-only-not-for-production'};
+test('returning during a map zoom does not execute animation callbacks after the map is removed',async({page,request})=>{
+  const project=await request.post('http://localhost:8787/api/projects',{headers,data:{name:'縮放切換測試',lat:24,lng:121}}).then(r=>r.json());
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  try{
+    await request.post(`http://localhost:8787/api/projects/${project.id}/features`,{headers,data:{geojson:{type:'Feature',properties:{name:'可定位測試點'},geometry:{type:'Point',coordinates:[121.002,24]}}}});
+    await page.route('**/tile.openstreetmap.org/**',r=>r.abort());await page.route('**/services.arcgisonline.com/**',r=>r.abort());
+    await page.goto(`/#/projects/${project.id}`);await page.getByRole('button',{name:'地圖標註 1',exact:true}).click();
+    await page.getByRole('button',{name:'定位標註：可定位測試點'}).click();await page.getByRole('button',{name:'所有地區專案',exact:true}).click();
+    await expect(page.locator('#overview-map')).toBeVisible();
+    // Leaflet's zoom completion callback runs 250ms after the transition starts.
+    await page.waitForTimeout(350);
+    expect(errors).toEqual([]);
+  }finally{await fetch(`http://localhost:8787/api/projects/${project.id}`,{method:'DELETE',headers});}
+});
 test('creating a region from the overview previews coordinates and opens its project workspace',async({page,request})=>{
   let created;
   try{

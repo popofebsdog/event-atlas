@@ -20,7 +20,7 @@ function showAll(){
 watch(()=>props.projects,paint,{deep:true});
 watch(listOpen,async()=>{await nextTick();map?.invalidateSize();});
 onMounted(()=>{
-  map=L.map(mapEl.value,{zoomControl:false}).setView(props.view?.center || [23.85,121],props.view?.zoom || 7);
+  map=L.map(mapEl.value,{zoomControl:false,zoomAnimation:false}).setView(props.view?.center || [23.85,121],props.view?.zoom || 7);
   const basic=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});
   const satellite=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Source: Esri, Vantor, Earthstar Geographics, GIS User Community'}).addTo(map);
   L.control.layers({'基本地圖':basic,'衛星影像':satellite},null,{collapsed:false,position:'topright'}).addTo(map);
