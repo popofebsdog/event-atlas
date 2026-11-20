@@ -1,5 +1,14 @@
 # Implementation record
 
+## Completed follow-up — three independent map tools
+
+The user clarified that grouping base maps and layers inside one popup was insufficient. The map now has three independent buttons: Basemap for basic/satellite selection; Layers for required events and optional annotations/geology; Create Annotation for drawing and KML/KMZ management. Opening one panel closes the other. Newly created annotations remain part of the annotation overlay. Mobile buttons retain one-line labels and 44px height at 320px viewport width.
+
+- [x] Existing regression first failed for the missing separate basemap entry, then passed after implementation. All 69 unit checks, 29 Worker browser scenarios, 4 affected Node browser scenarios and production build passed. No backend or dependency changes.
+- [x] Source 67ca230 published through successful workflow 44651130702. Real desktop/mobile basemap and layer controls, real WMS geology imagery/opacity, drawing entry/cancel, and overview controls passed without runtime errors. Production records match the pre-update snapshot exactly.
+
+Checklist: .Codex/plans/2026-11-20-separate-map-tools.md. Live results: /tmp/event-atlas-separate-tools-verification.json.
+
 ## Completed update — Vue 3 / Tailwind / Node.js, KML / KMZ and map simplification
 
 User requested a modular Vue3 + Tailwind + Node.js stack with a restrained Google/Apple-like interface. Confirmed: retain the existing public Cloudflare service and provide an independently deployable Node.js backend. Later requests: left sidebar contains only events; mandatory event layer, optional map annotations; remove browse/event toolbar and legend, integrate extent with zoom. Basemap radio choices must be distinct from data-layer checkboxes, and support external geology APIs.

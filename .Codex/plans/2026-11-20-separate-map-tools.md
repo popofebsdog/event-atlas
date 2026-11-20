@@ -5,13 +5,13 @@
 - [x] 圖層入口只顯示必要事件、可選標註、地質圖與其來源及透明度。
 - [x] 建立標註有獨立入口，點線面、KML/KMZ 與標註管理不放進圖層選單。
 - [x] 面板互斥，桌機及窄手機皆可操作，新標註沿用原標註圖層。
-- [ ] 操作測試、建置、發布與正式站只讀驗證完成，原資料完整保留。
+- [x] 操作測試、建置、發布與正式站只讀驗證完成，原資料完整保留。
 
 ## 步驟
 - [x] 更新現有操作測試，先確認對新需求失敗。
 - [x] 最小修改 MapLayers、App 接線、共同樣式與測試入口。
 - [x] 驗證底圖切換、資料圖層、建立及匯入標註、手機操作。
-- [ ] 發布既有正式站並驗證，更新使用說明與結果。
+- [x] 發布既有正式站並驗證，更新使用說明與結果。
 
 ## 注意事項
 工作在 /Users/lanyanlin/Desktop/event-atlas，GeoPort 原專案不修改。沿用既有事件必須顯示規則、KML/KMZ、官方地質圖來源及後端，不改正式資料。以現有圖示、色彩及44px按鈕形成三個相鄰而獨立的入口，無須新增套件。參考 Esri 官方將 Basemap Gallery 與 Map Layers 分成獨立工具的職責分工：https://doc.arcgis.com/en/experience-builder/latest/configure-widgets/widgets-overview.htm。
@@ -19,3 +19,7 @@
 ## 本機驗收
 
 既有測試已先對缺少獨立底圖入口失敗，再完成實作轉綠。69項單元、全部29組Worker操作與4組Node相關操作通過；桌機與320px手機真實畫面檢查無執行錯誤。窄手機按鈕使用單行文字及44px高度，事件選點提示移到工具列下方，避免遮擋。程式複查未發現待解決問題，沒有新增套件或後端改動。
+
+## 正式站完成
+
+程式碼 67ca230 已由 workflow 44651130702 成功發布。正式桌機及320px手機驗證三個獨立入口、面板互斥、底圖互斥選擇、標註與真實官方地質圖套疊及透明度、建立標註進入繪製與取消、專案總覽入口正常，無瀏覽器執行錯誤。正式專案、事件、標註與發布前快照完整一致，沒有正式寫入。結果 /tmp/event-atlas-separate-tools-verification.json，快照 /tmp/event-atlas-before-separate-tools.json 與 /tmp/event-atlas-after-separate-tools.json，畫面 /tmp/atlas-tools-live-desktop.png 與 /tmp/atlas-tools-live-mobile.png。
