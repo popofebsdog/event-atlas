@@ -1,0 +1,25 @@
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+  --color-ink: #202124;
+  --color-muted: #5f6368;
+  --color-brand: #1967d2;
+  --color-panel: #ffffff;
+  --color-canvas: #f5f5f7;
+  --color-outline: #e5e7eb;
+}
+:root {
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --accent: var(--color-brand);
+  --surface: #fff;
+  --line: #e5e7eb;
+  --tint: #edf3fe;
+  --event: #b96f08;
+  --station: #2563eb;
+  --danger: #b3261e;
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--color-canvas);
+}

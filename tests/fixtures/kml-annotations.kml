@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document><name>調查交換資料</name><Folder><name>現地紀錄</name>
+    <Placemark><name>觀測 &amp; 測點</name><description><![CDATA[第一行
+<b>原始敘述</b> & 安全保留]]></description><Point><coordinates>121.005,24.204,12</coordinates></Point></Placemark>
+    <Placemark><name>巡查線</name><description>路線說明</description><LineString><coordinates>121,24 121.01,24.01,0</coordinates></LineString></Placemark>
+    <Placemark><name>調查範圍</name><Polygon>
+      <outerBoundaryIs><LinearRing><coordinates>121,24 121.02,24 121.02,24.02 121,24.02 121,24</coordinates></LinearRing></outerBoundaryIs>
+      <innerBoundaryIs><LinearRing><coordinates>121.005,24.005 121.005,24.01 121.01,24.01 121.01,24.005 121.005,24.005</coordinates></LinearRing></innerBoundaryIs>
+    </Polygon></Placemark>
+  </Folder></Document>
+</kml>

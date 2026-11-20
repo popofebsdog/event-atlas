@@ -11,3 +11,6 @@ archives/
 .DS_Store
 test-results/
 playwright-report/
+
+data/
+.local/

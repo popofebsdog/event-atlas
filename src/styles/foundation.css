@@ -1,0 +1,292 @@
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    font-size: 16px;
+  }
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+  button,
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: white;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition:
+      background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  button:hover,
+  .button:hover {
+    background: #f1f4f9;
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  button:active:not(:disabled),
+  .button:active {
+    transform: translateY(1px);
+  }
+  :is(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+    outline: 3px solid #8ab4f8;
+    outline-offset: 3px;
+  }
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
+  }
+  h1 {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  h2 {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  h3 {
+    font-size: 16px;
+    line-height: 24px;
+  }
+  small {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  label {
+    display: block;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+  label input,
+  label textarea,
+  label select {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px;
+    border: 1px solid #cbd0d8;
+    border-radius: 12px;
+    color: var(--ink);
+    background: white;
+    font-size: 16px;
+    font-weight: 400;
+    min-width: 0;
+  }
+  label input[type="checkbox"],
+  label input[type="radio"] {
+    accent-color: var(--accent);
+  }
+  textarea {
+    resize: vertical;
+  }
+  dialog {
+    margin: auto;
+    width: min(560px, calc(100% - 32px));
+    max-height: 90dvh;
+    overflow: auto;
+    padding: 32px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: white;
+    color: var(--ink);
+    box-shadow: 0 24px 96px #20212430;
+  }
+  dialog::backdrop {
+    background: #20212455;
+    backdrop-filter: blur(4px);
+  }
+}
+@layer components {
+  .primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .primary:hover {
+    background: #185abc;
+    border-color: #185abc;
+  }
+  .wide {
+    width: 100%;
+  }
+  .atlas-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .icon-button {
+    padding: 8px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .text-action {
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+  }
+  .danger-text {
+    color: var(--danger);
+  }
+  .danger-button {
+    color: white;
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+  .danger-button:hover {
+    background: #8c1d18;
+    border-color: #8c1d18;
+  }
+  .hint {
+    margin: 8px 0 16px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 22px;
+  }
+  .error {
+    color: var(--danger);
+    font-size: 14px;
+    line-height: 22px;
+  }
+  .empty-small {
+    padding: 32px 24px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 24px;
+  }
+  .banner {
+    padding: 12px 24px;
+    background: #fff4de;
+    color: #6c4500;
+    font-size: 14px;
+  }
+  .dialog-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dialog-heading h2 {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .dialog-heading > button {
+    width: 44px;
+    height: 44px;
+    padding: 8px;
+    border: 0;
+    border-radius: 50%;
+    font-size: 24px;
+  }
+  .field-row {
+    display: flex;
+    gap: 16px;
+  }
+  .field-row > label {
+    width: 50%;
+    min-width: 0;
+  }
+  .form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+  }
+  .coordinate-heading {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+  .coordinate-preview,
+  .project-name-field {
+    margin-top: 16px;
+  }
+  .coordinate-map {
+    height: 220px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .photo-thumbnails {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .photo-thumbnails figure {
+    width: 120px;
+  }
+  .photo-thumbnails img {
+    width: 120px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+  .photo-thumbnails button {
+    width: 100%;
+    margin-top: 4px;
+  }
+}
+@media (max-width: 540px) {
+  dialog {
+    width: calc(100% - 24px);
+    padding: 24px;
+    max-height: 94dvh;
+    border-radius: 20px;
+  }
+  .event-metadata-row {
+    flex-wrap: wrap;
+  }
+  .event-metadata-row > label {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .button {
+    transition: none;
+  }
+  button:active:not(:disabled),
+  .button:active {
+    transform: none;
+  }
+}

@@ -1,5 +1,20 @@
 # Implementation record
 
+## Active update — Vue 3 / Tailwind / Node.js, KML / KMZ and map simplification
+
+User requested a modular Vue3 + Tailwind + Node.js stack with a restrained Google/Apple-like interface. Confirmed: retain the existing public Cloudflare service and provide an independently deployable Node.js backend. Later requests: left sidebar contains only events; mandatory event layer, optional map annotations; remove browse/event toolbar and legend, integrate extent with zoom. Basemap radio choices must be distinct from data-layer checkboxes, and support external geology APIs.
+
+- [x] Refactor into Vue components, scoped workspace context, map/workspace composables, API services, shared utilities and a Tailwind token/style system. Remove obsolete styles.
+- [x] Share the existing API between Cloudflare and Node HTTP adapters; SQLite migrations, transactions and persistent photo blobs; scripts, Dockerfile and deployment documentation. Node public fetch resolves and pins public DNS addresses, preserves TLS, streams PDF with cancellation, rejects encoded range ambiguity.
+- [x] KML/KMZ exchange with geometry/text preservation, polygon holes and bounded safe XML/ZIP parsing. UI supports both formats and administrator-controlled export; GeoJSON remains internal API geometry.
+- [x] Simplify the map to the requested hierarchy; add official GSMMA 1:50,000 WMS geology as an optional overlay, 4326-specific requests, attribution, source/scale/opacity/loading/errors/retry. No anonymous crossOrigin; source images verified in real Chromium.
+- [x] Fix late annotation-read overwrites, reader state props, transient Leaflet label duplication and repeated external-layer timeout guards, with browser regressions.
+- [x] 69 unit checks, dependency audit (zero vulnerabilities), build and Worker dry-run passed. Both runtimes passed all 29 browser scenarios, including first-load and retry timeouts and normal external-layer recovery.
+- [x] Real desktop/mobile UI and real geology images inspected; original CWA PDF range requests verified for both transports. Native npm run dev launched both services and passed health/read checks. Docker daemon unavailable, so Docker image build is not claimed.
+- [ ] Publish and verify actual production UI and media; compare public records to /tmp/event-atlas-before-framework.json.
+
+Implementation and checklist: .Codex/plans/2026-11-20-framework-ui-kml.md. Current docs: docs/architecture.md, docs/node-deployment.md, docs/webgis-usage-roadmap.md, docs/geology-source.md. Source code has not yet been committed for this update.
+
 ## Completed update — chronological browsing and annotation cards
 
 User wants a time-ordered map story rather than loose collection. Confirmed scope: manual previous/next plus an event overview, with chronological numbering and synchronized map/card focus; no autoplay. Also requested information cards for annotations and visibly different map symbols because the old hollow annotation point was too faint. Work in `/Users/lanyanlin/Desktop/event-atlas`; active checklist is `.Codex/plans/2026-11-19-chronological-map-tour.md`. Existing data and backend schema remain unchanged.

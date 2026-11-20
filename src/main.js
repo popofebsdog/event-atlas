@@ -1,7 +1,4 @@
 import { createApp } from "vue";
 import App from "./App.vue";
-import "leaflet/dist/leaflet.css";
-import "./style.css";
-import "./reader.css";
-import "./workbench.css";
+import "./styles/index.css";
 createApp(App).mount("#app");

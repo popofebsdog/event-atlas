@@ -1,8 +1,22 @@
 # 地點紀事 Event Atlas
 
+Vue 3 + Tailwind CSS + Node.js 的事件地圖工作區。地區專案、事件時間軸及可選地圖標註分層；標註透過 KML／KMZ 匯入匯出。
+
+```bash
+npm install
+npm run dev
+```
+
+前端 5174、Node.js API 8787；開發模式會提供僅限本機的測試管理員金鑰，見 [Node.js 部署與開發](docs/node-deployment.md)。單獨前端使用 `npm run dev:frontend`，Cloudflare 模擬環境保留 `npm run api:dev`。目前正式站依舊是 GitHub Pages + Cloudflare Workers / D1，原資料未搬移。
+
+- [程式架構與目錄](docs/architecture.md)
+- [Node.js 獨立部署、設定與備份](docs/node-deployment.md)
+- [地圖／時間軸／標註操作](docs/webgis-usage-roadmap.md)
+
+
 獨立於 GeoPort 的公開共筆 WebGIS。Vue + Leaflet 前端部署到 GitHub Pages，Cloudflare Workers + D1 儲存共用資料。選點建立地區，加入不同時間的事件及網頁網址，從地圖與時間軸閱讀原網站。
 
-## 本機啟動
+## Cloudflare 本機模擬（另一種開發方式）
 
 需要 Node.js 22.13+。安裝依賴時會自動準備 PDF 預覽所需的字型及閱讀資源。
 
@@ -22,7 +36,7 @@ ADMIN_TOKEN=replace-with-a-long-random-local-token
 
 ```sh
 npm run api:dev
-npm run dev
+npm run dev:frontend
 ```
 
 瀏覽 http://localhost:5174 。本機 D1 是真正共用的測試資料庫；不是 localStorage 假資料。兩個瀏覽器視窗可互相看到新增內容，每 15 秒更新。分頁隱藏時暫停更新以節省額度。無資料時正常顯示空白狀態。

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateProject, validateEvent } from "../worker/validation.js";
+import { validateProject, validateEvent } from "../server/validation.js";
 import worker from "../worker/index.js";
 const event = {
   title: "崩塌",
@@ -65,7 +65,11 @@ test("authorized writes fail closed without Turnstile secret, even if LOCAL_DEV 
       },
       body: JSON.stringify({ name: "a", lat: 24, lng: 121 }),
     }),
-    { ALLOWED_ORIGINS: "https://example.com", LOCAL_DEV: "true", ADMIN_TOKEN: "test-key" },
+    {
+      ALLOWED_ORIGINS: "https://example.com",
+      LOCAL_DEV: "true",
+      ADMIN_TOKEN: "test-key",
+    },
   );
   assert.equal(response.status, 403);
 });
@@ -80,7 +84,11 @@ test("rejects oversized request before parsing or DB writes", async () => {
       },
       body: "a".repeat(24001),
     }),
-    { ALLOWED_ORIGINS: "http://localhost:5174", LOCAL_DEV: "true", ADMIN_TOKEN: "test-key" },
+    {
+      ALLOWED_ORIGINS: "http://localhost:5174",
+      LOCAL_DEV: "true",
+      ADMIN_TOKEN: "test-key",
+    },
   );
   assert.equal(response.status, 400);
 });

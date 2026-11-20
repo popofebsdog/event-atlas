@@ -1,0 +1,101 @@
+import { API_BASE, UI_ORIGIN } from "./support/api";
+import { test, expect } from "@playwright/test";
+const headers = {
+  Origin: UI_ORIGIN,
+  Authorization: "Bearer local-development-only-not-for-production",
+};
+test("events stay required, optional annotations live in the map layers, and extent sits beside zoom", async ({
+  page,
+  request,
+}) => {
+  const project = await request
+    .post(`${API_BASE}/api/projects`, {
+      headers,
+      data: { name: "簡潔地圖操作", lat: 24, lng: 121 },
+    })
+    .then((r) => r.json());
+  try {
+    await request.post(`${API_BASE}/api/projects/${project.id}/events`, {
+      headers,
+      data: {
+        title: "固定顯示事件",
+        description: "",
+        occurred_at: "2026-11-20T01:00:00Z",
+        lat: 24,
+        lng: 121,
+      },
+    });
+    await request.post(`${API_BASE}/api/projects/${project.id}/features`, {
+      headers,
+      data: {
+        geojson: {
+          type: "Feature",
+          properties: { name: "可選標註" },
+          geometry: { type: "Point", coordinates: [121.001, 24.001] },
+        },
+      },
+    });
+    await page.route("**/tile.openstreetmap.org/**", (r) => r.abort());
+    await page.route("**/services.arcgisonline.com/**", (r) => r.abort());
+    await page.goto(`/#/projects/${project.id}`);
+    await expect(
+      page.getByRole("button", { name: "瀏覽", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "事件", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("checkbox", { name: "顯示事件圖層" }),
+    ).toHaveCount(0);
+    await expect(page.locator(".map-legend")).toHaveCount(0);
+    const sidebar = page.getByRole("complementary", { name: "專案事件時間軸" });
+    await expect(
+      sidebar.getByRole("heading", { name: "事件時間軸" }),
+    ).toBeVisible();
+    await expect(sidebar.getByText("地圖標註")).toHaveCount(0);
+    const event = page.locator(
+        '.leaflet-marker-icon[title="事件：固定顯示事件"]',
+      ),
+      annotation = page.locator('.leaflet-marker-icon[title="標註：可選標註"]');
+    await expect(event).toBeVisible();
+    await expect(annotation).toHaveCount(0);
+    await page.getByRole("button", { name: "地圖圖層", exact: true }).click();
+    await expect(page.getByText("事件固定顯示", { exact: true })).toBeVisible();
+    await page.getByRole("checkbox", { name: "顯示標註圖層" }).check();
+    await expect(annotation).toBeVisible();
+    await page.getByRole("checkbox", { name: "顯示標註圖層" }).uncheck();
+    await expect(annotation).toHaveCount(0);
+    await expect(event).toBeVisible();
+    await page.getByRole("checkbox", { name: "顯示標註圖層" }).check();
+    await expect(annotation).toBeVisible();
+    await page.getByRole("button", { name: "地圖標註 1", exact: true }).click();
+    await expect(
+      page.getByRole("complementary", { name: "地圖標註管理" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "關閉標註管理" }).click();
+    const extent = page
+      .locator(".leaflet-control-zoom")
+      .getByRole("button", { name: "專案範圍", exact: true });
+    await expect(extent).toBeVisible();
+    await extent.click();
+    await sidebar
+      .getByRole("button", { name: "地圖選點新增事件", exact: true })
+      .click();
+    await page.locator("#map").click({ position: { x: 120, y: 180 } });
+    await expect(
+      page.getByRole("heading", { name: "新增時間軸事件", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "關閉表單", exact: true }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(
+      page.getByRole("button", { name: "標註", exact: true }),
+    ).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  } finally {
+    await request.delete(`${API_BASE}/api/projects/${project.id}`, { headers });
+  }
+});
