@@ -1,6 +1,6 @@
 # Implementation record
 
-## Active update — Vue 3 / Tailwind / Node.js, KML / KMZ and map simplification
+## Completed update — Vue 3 / Tailwind / Node.js, KML / KMZ and map simplification
 
 User requested a modular Vue3 + Tailwind + Node.js stack with a restrained Google/Apple-like interface. Confirmed: retain the existing public Cloudflare service and provide an independently deployable Node.js backend. Later requests: left sidebar contains only events; mandatory event layer, optional map annotations; remove browse/event toolbar and legend, integrate extent with zoom. Basemap radio choices must be distinct from data-layer checkboxes, and support external geology APIs.
 
@@ -11,9 +11,9 @@ User requested a modular Vue3 + Tailwind + Node.js stack with a restrained Googl
 - [x] Fix late annotation-read overwrites, reader state props, transient Leaflet label duplication and repeated external-layer timeout guards, with browser regressions.
 - [x] 69 unit checks, dependency audit (zero vulnerabilities), build and Worker dry-run passed. Both runtimes passed all 29 browser scenarios, including first-load and retry timeouts and normal external-layer recovery.
 - [x] Real desktop/mobile UI and real geology images inspected; original CWA PDF range requests verified for both transports. Native npm run dev launched both services and passed health/read checks. Docker daemon unavailable, so Docker image build is not claimed.
-- [ ] Publish and verify actual production UI and media; compare public records to /tmp/event-atlas-before-framework.json.
+- [x] Published source e2ea411 through successful workflow 44650012500. Actual desktop/mobile basemap switching, mandatory events, optional annotations, annotation management, real WMS geology imagery/opacity and original CWA PDF page 86 passed with no runtime errors. Public projects/events/features match /tmp/event-atlas-before-framework.json exactly (2 projects, 6 events, 3 annotations; baseline contains no photos).
 
-Implementation and checklist: .Codex/plans/2026-11-20-framework-ui-kml.md. Current docs: docs/architecture.md, docs/node-deployment.md, docs/webgis-usage-roadmap.md, docs/geology-source.md. Source code has not yet been committed for this update.
+Implementation and checklist: .Codex/plans/2026-11-20-framework-ui-kml.md. Current docs: docs/architecture.md, docs/node-deployment.md, docs/webgis-usage-roadmap.md, docs/geology-source.md. Source is committed and deployed. Live verification: /tmp/event-atlas-framework-verification.json; full post-deploy snapshot: /tmp/event-atlas-after-framework.json.
 
 ## Completed update — chronological browsing and annotation cards
 

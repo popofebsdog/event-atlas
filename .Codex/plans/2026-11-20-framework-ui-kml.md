@@ -18,7 +18,7 @@
 
 白色 #ffffff、淺灰 #f5f5f7、文字 #202124、次文字 #5f6368、互動藍 #1a73e8；事件保留暖色圓形時間編號，標註為實心藍色方點與線面，形狀與標籤共同區分。
 
-採系統無襯線字型，16px 內文、14px 操作與次要資料，12px 僅用非關鍵輔助資訊。統一 8/12/16/24/32 間距、12px 控制項／20px 主容器圓角。工具列與分段導覽可使用圓形／膠囊，圖卡保持安靜。44px 觸控目標，清楚焦點，減少動態偏好保留。桌機是清單＋地圖，手機維持地圖／時間軸／標註。
+採系統無襯線字型，16px 內文、14px 操作與次要資料，12px 僅用非關鍵輔助資訊。統一 8/12/16/24/32 間距、12px 控制項／20px 主容器圓角。工具列與分段導覽可使用圓形／膠囊，圖卡保持安靜。44px 觸控目標，清楚焦點，減少動態偏好保留。桌機是清單＋地圖，手機維持地圖／時間軸切換，標註由地圖圖層入口管理。
 
 參考：Apple HIG Layout（https://developer.apple.com/design/human-interface-guidelines/layout）、Apple HIG Materials（https://developer.apple.com/design/human-interface-guidelines/materials）、Google Material（https://m3.material.io/）、Tailwind 官方 Vite 安裝（https://tailwindcss.com/docs/installation/using-vite）。借鑑階層及操作規則，不直接複製品牌畫面。
 
@@ -32,7 +32,7 @@
 - [x] KML 與 KMZ 均可匯入；匯出可選 KML／KMZ，名稱、說明、幾何來回一致；不將標註變成事件。
 - [x] 桌機、手機與窄螢幕的總覽、時間導覽、標註、表單、PDF／照片閱讀完成驗收。
 - [x] 程式複查、測試、建置與依賴檢查通過。
-- [ ] 沿用現有正式站發布，實測並比對原資料未異動。
+- [x] 沿用現有正式站發布，實測並比對原資料未異動。
 
 ## 分工
 
@@ -50,7 +50,7 @@
 
 ## 進度
 
-已完成 Vue 元件／workspace與map composables／services／styles 分層、Tailwind正式整合、共用 API 與兩個runtime入口、SQLite migration/batch與持久保存。KML模組16項測試與瀏覽器交換通過，Node／Worker共69項自動測試通過。簡化地圖與標註流程通過；完整瀏覽器測試抓到閱讀區兩個ref遺漏與Leaflet tooltip淡出短暫重複，均修正且tour三組回歸轉綠。後續標註同步race與最後整套、畫面驗收及發布。Docker daemon目前未啟動，提供部署檔但未宣稱映像已建置。
+已完成 Vue 元件、workspace／map composables、services、styles 分層及 Tailwind 正式整合。Node／Worker 共 69 項自動測試、兩套後端各 29 組操作測試皆通過，依賴檢查零漏洞，建置及 Worker 發布成功。Docker daemon 未啟動，提供部署檔但未宣稱映像已建置。
 
 ## 外部資料圖層追加需求
 
@@ -59,8 +59,10 @@
 - [x] 新增可擴充外部 WMS／XYZ 圖層設定，來源與比例尺明示。
 - [x] 底圖互斥、資料圖層可同時套疊，事件固定，標註與地質圖預設關閉。
 - [x] 外部圖層有不透明度、載入／錯誤／重試；不寫入事件或標註，不納入 KML 匯出。
-- [ ] 真實官方服務、測試用中斷恢復、手機面板與部署後驗證。
+- [x] 真實官方服務、測試用中斷恢復、手機面板與部署後驗證。
 
 圖層控制再整理為「底圖」與「資料圖層」兩個fieldset。所有外部圖層在資料pane 300，低於標註與事件；地圖內建立獨立stacking context，避免原生縮放控制蓋住浮動面板。
 
-最終狀態：所有程式功能完成，雙runtime各27組操作與69項單元已通過。新增外部服務持續pending的兩個逾時／重試回歸已由紅轉綠（含原外部恢復測試共3個通過）；雙runtime各29組整套已全部通過。npm run dev實際雙服務啟動／讀取已驗證並關閉smoke服務。CWA原PDF在預設與Node安全transport皆回206及%PDF-簽章。最後剩提交、發布與正式站只讀驗證及資料比對。
+最終狀態：程式碼 e2ea411 已經 workflow 44650012500 成功發布。正式桌機／手機底圖切換、必要事件、可選標註、標註管理、官方地質圖實際出圖與透明度，以及原有中央氣象署 PDF 第 86 頁均通過，無瀏覽器執行錯誤。正式資料完整比對發布前快照一致：2 個專案、6 個事件、3 筆標註；發布前快照無照片，照片功能由雙後端回歸測試驗證。未寫入或遷移正式資料。
+
+驗證結果 `/tmp/event-atlas-framework-verification.json`，發布後快照 `/tmp/event-atlas-after-framework.json`，實際畫面 `/tmp/atlas-live-desktop.png`、`/tmp/atlas-live-geology.png`、`/tmp/atlas-live-layer-controls-mobile.png`、`/tmp/atlas-live-pdf.png`。npm run dev 啟動實測與原 PDF 兩種 transport 的 206／%PDF- 也已通過。
