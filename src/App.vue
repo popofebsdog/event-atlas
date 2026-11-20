@@ -152,6 +152,7 @@ const {
             :model-value="baseMap"
             :external-layers="externalLayers"
             annotations
+            :annotations-open="annotationsPanelOpen"
             :show-annotations="showAnnotations"
             :count="features.length"
             :event-count="events.length"
@@ -161,6 +162,7 @@ const {
             @opacity-external="setExternalOpacity"
             @retry-external="retryExternalLayer"
             @update:show-annotations="showAnnotations = $event"
+            @open-panel="annotationsPanelOpen = false"
             @manage="
               mobileTab = 'map';
               mapMode = 'browse';
@@ -182,8 +184,8 @@ const {
               class="annotation-panel-heading flex items-center justify-between gap-3"
             >
               <div>
-                <span class="workspace-eyebrow">地圖圖層</span>
-                <h2>標註管理</h2>
+                <span class="workspace-eyebrow">繪製與管理</span>
+                <h2>建立標註</h2>
               </div>
               <button
                 class="icon-button"

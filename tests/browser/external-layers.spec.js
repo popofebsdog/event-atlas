@@ -59,7 +59,7 @@ test("basemaps are exclusive while geology and annotations are independent overl
     await page.getByRole("button", { name: "地圖圖層", exact: true }).click();
     await expect(
       page.getByRole("group", { name: "底圖", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(
       page.getByRole("group", { name: "資料圖層", exact: true }),
     ).toBeVisible();
@@ -86,10 +86,12 @@ test("basemaps are exclusive while geology and annotations are independent overl
     await expect(
       page.getByRole("link", { name: "地質圖來源", exact: true }),
     ).toHaveAttribute("href", /geomap\.gsmma\.gov\.tw/);
+    await page.getByRole("button", { name: "地圖底圖", exact: true }).click();
     await page.getByRole("radio", { name: "基本地圖", exact: true }).check();
     await expect(
       page.getByRole("radio", { name: "衛星影像", exact: true }),
     ).not.toBeChecked();
+    await page.getByRole("button", { name: "地圖圖層", exact: true }).click();
     await expect(geology).toBeChecked();
     await page.getByRole("checkbox", { name: "顯示標註圖層" }).check();
     await expect(page.locator(".annotation-marker")).toHaveCount(1);

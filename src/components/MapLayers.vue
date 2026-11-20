@@ -4,6 +4,7 @@ import AtlasIcon from "./AtlasIcon.vue";
 const props = defineProps({
   modelValue: String,
   annotations: Boolean,
+  annotationsOpen: Boolean,
   showAnnotations: Boolean,
   count: Number,
   eventCount: Number,
@@ -14,22 +15,31 @@ const emit = defineEmits([
   "update:modelValue",
   "update:showAnnotations",
   "manage",
+  "open-panel",
   "toggle-external",
   "opacity-external",
   "retry-external",
 ]);
-const open = ref(false),
+const open = ref(""),
   panel = ref(null);
+function togglePanel(name) {
+  open.value = open.value === name ? "" : name;
+  if (open.value) emit("open-panel");
+}
+function createAnnotation() {
+  open.value = "";
+  emit("manage");
+}
 function outside(event) {
-  if (!panel.value?.contains(event.target)) open.value = false;
+  if (!panel.value?.contains(event.target)) open.value = "";
 }
 function escape(event) {
-  if (event.key === "Escape") open.value = false;
+  if (event.key === "Escape") open.value = "";
 }
 watch(
   () => props.disabled,
   (value) => {
-    if (value) open.value = false;
+    if (value) open.value = "";
   },
 );
 onMounted(() => {
@@ -50,27 +60,51 @@ onBeforeUnmount(() => {
     @dblclick.stop
     @pointerdown.stop
   >
-    <button
-      class="map-tool-button"
-      aria-label="地圖圖層"
-      :aria-expanded="open"
-      :disabled="disabled"
-      @click="open = !open"
-    >
-      <AtlasIcon name="layers" /><span>圖層</span>
-    </button>
+    <div class="map-tool-buttons" role="group" aria-label="地圖工具">
+      <button
+        class="map-tool-button"
+        aria-label="地圖底圖"
+        :aria-expanded="open === 'basemap'"
+        :disabled="disabled"
+        @click="togglePanel('basemap')"
+      >
+        <AtlasIcon name="map" /><span>底圖</span>
+      </button>
+      <button
+        v-if="annotations || externalLayers.length"
+        class="map-tool-button"
+        aria-label="地圖圖層"
+        :aria-expanded="open === 'layers'"
+        :disabled="disabled"
+        @click="togglePanel('layers')"
+      >
+        <AtlasIcon name="layers" /><span>圖層</span>
+      </button>
+      <button
+        v-if="annotations"
+        class="map-tool-button"
+        aria-label="建立標註"
+        :aria-expanded="annotationsOpen"
+        :disabled="disabled"
+        @click="createAnnotation"
+      >
+        <AtlasIcon name="plus" /><span>建立標註</span>
+      </button>
+    </div>
     <div v-if="open" class="layer-popover">
       <div class="flex items-center justify-between gap-3">
-        <h2 class="text-base font-semibold">地圖顯示</h2>
+        <h2 class="text-base font-semibold">
+          {{ open === "basemap" ? "地圖底圖" : "地圖圖層" }}
+        </h2>
         <button
           class="icon-button"
-          aria-label="關閉圖層選單"
-          @click="open = false"
+          :aria-label="open === 'basemap' ? '關閉底圖選單' : '關閉圖層選單'"
+          @click="open = ''"
         >
           <AtlasIcon name="close" />
         </button>
       </div>
-      <fieldset class="basemap-options">
+      <fieldset v-if="open === 'basemap'" class="basemap-options">
         <legend>底圖</legend>
         <p class="layer-help">選擇一種背景地圖</p>
         <div class="basemap-grid">
@@ -91,10 +125,7 @@ onBeforeUnmount(() => {
           >
         </div>
       </fieldset>
-      <fieldset
-        v-if="annotations || externalLayers.length"
-        class="data-layer-options"
-      >
+      <fieldset v-else-if="open === 'layers'" class="data-layer-options">
         <legend>資料圖層</legend>
         <p class="layer-help">可在底圖上同時套疊多種資料</p>
         <template v-if="annotations">
@@ -113,16 +144,7 @@ onBeforeUnmount(() => {
               /><span
                 ><strong>地圖標註</strong><small>專案的點、線、面</small></span
               ></label
-            ><button
-              class="text-action"
-              :aria-label="`地圖標註 ${count}`"
-              @click="
-                open = false;
-                emit('manage');
-              "
-            >
-              管理標註
-            </button>
+            ><span class="ml-auto text-sm text-muted">{{ count }} 筆</span>
           </div>
         </template>
         <div

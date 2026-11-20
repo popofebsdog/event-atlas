@@ -492,7 +492,12 @@
     top: 16px;
     right: 16px;
   }
+  .map-tool-buttons {
+    display: flex;
+    gap: 8px;
+  }
   .map-tool-button {
+    white-space: nowrap;
     min-height: 44px;
     border: 1px solid #dadce0;
     border-radius: 12px;
@@ -537,6 +542,9 @@
     background: var(--event);
   }
   .optional-layer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--line);
   }
@@ -553,11 +561,6 @@
     min-width: 18px;
     margin: 0;
     padding: 0;
-  }
-  .optional-layer button {
-    margin-left: 28px;
-    min-height: 40px;
-    padding: 4px 8px;
   }
   .basemap-options {
     margin-top: 16px;
@@ -585,7 +588,7 @@
   .map-pick-hint {
     position: absolute;
     left: 50%;
-    top: 16px;
+    top: 72px;
     transform: translateX(-50%);
     z-index: 750;
     display: flex;
@@ -804,6 +807,9 @@
     top: 12px;
     right: 12px;
   }
+  .map-tool-button {
+    padding: 8px;
+  }
   .map-pick-hint {
     left: 12px;
     top: 68px;
@@ -890,9 +896,7 @@
     border-radius: 12px;
   }
   .data-layer-options {
-    padding-top: 16px;
-    margin-top: 16px;
-    border-top: 1px solid var(--line);
+    margin-top: 12px;
   }
   .external-layer-row {
     padding: 16px 0 4px;

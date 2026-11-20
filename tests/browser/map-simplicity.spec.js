@@ -4,7 +4,7 @@ const headers = {
   Origin: UI_ORIGIN,
   Authorization: "Bearer local-development-only-not-for-production",
 };
-test("events stay required, optional annotations live in the map layers, and extent sits beside zoom", async ({
+test("basemaps, data layers and annotation creation have independent tools on desktop and mobile", async ({
   page,
   request,
 }) => {
@@ -59,7 +59,40 @@ test("events stay required, optional annotations live in the map layers, and ext
       annotation = page.locator('.leaflet-marker-icon[title="標註：可選標註"]');
     await expect(event).toBeVisible();
     await expect(annotation).toHaveCount(0);
-    await page.getByRole("button", { name: "地圖圖層", exact: true }).click();
+    const basemapTool = page.getByRole("button", {
+      name: "地圖底圖",
+      exact: true,
+    });
+    const layerTool = page.getByRole("button", {
+      name: "地圖圖層",
+      exact: true,
+    });
+    const createTool = page.getByRole("button", {
+      name: "建立標註",
+      exact: true,
+    });
+    await expect(basemapTool).toBeVisible();
+    await expect(layerTool).toBeVisible();
+    await expect(createTool).toBeVisible();
+    await basemapTool.click();
+    await expect(
+      page.getByRole("group", { name: "底圖", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+    await page.getByRole("radio", { name: "基本地圖", exact: true }).check();
+    await expect(
+      page.getByRole("radio", { name: "衛星影像", exact: true }),
+    ).not.toBeChecked();
+    await layerTool.click();
+    await expect(page.getByRole("radio")).toHaveCount(0);
+    await expect(
+      page.getByRole("group", { name: "資料圖層", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator(".layer-popover")
+        .getByRole("button", { name: /標註|標點|畫線|畫面/ }),
+    ).toHaveCount(0);
     await expect(page.getByText("事件固定顯示", { exact: true })).toBeVisible();
     await page.getByRole("checkbox", { name: "顯示標註圖層" }).check();
     await expect(annotation).toBeVisible();
@@ -68,11 +101,20 @@ test("events stay required, optional annotations live in the map layers, and ext
     await expect(event).toBeVisible();
     await page.getByRole("checkbox", { name: "顯示標註圖層" }).check();
     await expect(annotation).toBeVisible();
-    await page.getByRole("button", { name: "地圖標註 1", exact: true }).click();
+    await createTool.click();
+    await expect(page.locator(".layer-popover")).toHaveCount(0);
     await expect(
       page.getByRole("complementary", { name: "地圖標註管理" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "關閉標註管理" }).click();
+    await expect(
+      page.getByRole("button", { name: "標點", exact: true }),
+    ).toBeVisible();
+    await basemapTool.click();
+    await expect(
+      page.getByRole("complementary", { name: "地圖標註管理" }),
+    ).not.toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".layer-popover")).toHaveCount(0);
     const extent = page
       .locator(".leaflet-control-zoom")
       .getByRole("button", { name: "專案範圍", exact: true });
@@ -86,10 +128,27 @@ test("events stay required, optional annotations live in the map layers, and ext
       page.getByRole("heading", { name: "新增時間軸事件", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "關閉表單", exact: true }).click();
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 320, height: 844 });
     await expect(
       page.getByRole("button", { name: "標註", exact: true }),
     ).toHaveCount(0);
+    for (const tool of [basemapTool, layerTool, createTool]) {
+      await expect(tool).toBeInViewport();
+      expect((await tool.boundingBox()).height).toBe(44);
+    }
+    await basemapTool.click();
+    await expect(
+      page.getByRole("radio", { name: "基本地圖", exact: true }),
+    ).toBeChecked();
+    await layerTool.click();
+    await expect(page.getByRole("radio")).toHaveCount(0);
+    await expect(
+      page.getByRole("checkbox", { name: "顯示標註圖層" }),
+    ).toBeVisible();
+    await createTool.click();
+    await expect(
+      page.getByRole("button", { name: "標點", exact: true }),
+    ).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
